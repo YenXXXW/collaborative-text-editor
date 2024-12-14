@@ -9,7 +9,7 @@ type Program struct {
 	ID       int64  `json:"id"`
 	Language string `json:"language"`
 	Code     string `json:"code"`
-	RoomId   string `json:"room_id"`
+	RoomId   int    `json:"room_id"`
 }
 
 type ProgramStore struct {
