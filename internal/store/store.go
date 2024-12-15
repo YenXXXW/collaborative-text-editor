@@ -11,7 +11,7 @@ type Storage struct {
 	}
 
 	Rooms interface {
-		Create(context.Context, *Room) error
+		Create(context.Context, *Room) (*Room, error)
 	}
 }
 

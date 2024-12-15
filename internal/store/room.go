@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"github.com/lib/pq"
+	"log"
 )
 
 type Room struct {
@@ -17,7 +18,8 @@ type RoomStore struct {
 	db *sql.DB
 }
 
-func (s *RoomStore) Create(ctx context.Context, room *Room) error {
+func (s *RoomStore) Create(ctx context.Context, room *Room) (*Room, error) {
+	log.Print("room", room)
 	query := `INSERT INTO	rooms (users_in_room, creator_id) VALUES ($1, $2) RETURNING id, users_in_room, creator_id, created_at`
 
 	err := s.db.QueryRowContext(
@@ -33,8 +35,8 @@ func (s *RoomStore) Create(ctx context.Context, room *Room) error {
 	)
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return room, nil
 }

@@ -3,13 +3,14 @@ package store
 import (
 	"context"
 	"database/sql"
+	"log"
 )
 
 type Program struct {
 	ID       int64  `json:"id"`
 	Language string `json:"language"`
 	Code     string `json:"code"`
-	RoomId   int    `json:"room_id"`
+	RoomId   int64  `json:"room_id"`
 }
 
 type ProgramStore struct {
@@ -17,7 +18,7 @@ type ProgramStore struct {
 }
 
 func (s *ProgramStore) Create(ctx context.Context, program *Program) error {
-	query := `INSERT INTO programs (language, code, room_id) VALUES ($1, $2, $3) RETURENING language, code`
+	query := `INSERT INTO programs (language, code, room_id) VALUES ($1, $2, $3) RETURNING language, code, room_id`
 
 	err := s.db.QueryRowContext(
 		ctx,
@@ -32,7 +33,9 @@ func (s *ProgramStore) Create(ctx context.Context, program *Program) error {
 	)
 
 	if err != nil {
+		log.Print(err)
 		return err
+
 	}
 
 	return nil
