@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/yenxxxw/collaborative-text-editor/internal/store"
@@ -49,11 +50,29 @@ func (rm *RoomManager) LeaveRoom(roomId string, client *Client) {
 	}
 }
 
+func (rm *RoomManager) BroadcastToRoom(roomId string, message []byte) {
+	rm.Mutex.Lock()
+	defer rm.Mutex.Unlock()
+
+	if clients, ok := rm.Rooms[roomId]; ok {
+		for client := range clients {
+			select {
+			case client.Send <- message:
+
+			default:
+				rm.LeaveRoom(roomId, client)
+			}
+		}
+	}
+}
+
 func NewRoomManager() *RoomManager {
 	return &RoomManager{
 		Rooms: make(map[string]map[*Client]bool),
 	}
 }
+
+var roomManager = NewRoomManager()
 
 var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
@@ -120,4 +139,64 @@ func (app *application) joinRoomHandler(w http.ResponseWriter, r *http.Request) 
 		Send:   make(chan []byte),
 	}
 
+	roomManager.JoinRoom(roomID, client)
+
+	go handleClientWrites(client)
+	go handleClientReads(client)
+}
+
+func handleClientReads(client *Client) {
+
+	defer func() {
+		roomManager.LeaveRoom(client.RoomId, client)
+		client.Conn.Close()
+	}()
+
+	client.Conn.SetReadLimit(maxMessageSize)
+	client.Conn.SetReadDeadline(time.Now().Add(pongWait))
+	client.Conn.SetPongHandler(func(string) error {
+		client.Conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
+
+	for {
+		_, message, err := client.Conn.ReadMessage()
+		if err != nil {
+			log.Printf("Error reading message: %v", err)
+			break
+		}
+
+		roomManager.BroadcastToRoom(client.RoomId, message)
+	}
+
+}
+
+func handleClientWrites(client *Client) {
+	ticker := time.NewTicker(pingPeriod)
+	defer func() {
+		ticker.Stop()
+		client.Conn.Close()
+	}()
+
+	for {
+		select {
+		case message, ok := <-client.Send:
+			client.Conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if !ok {
+				client.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+			err := client.Conn.WriteMessage(websocket.TextMessage, message)
+			if err != nil {
+				log.Printf("Error writing message: %v", err)
+				return
+			}
+
+		case <-ticker.C:
+			client.Conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := client.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				return
+			}
+		}
+	}
 }

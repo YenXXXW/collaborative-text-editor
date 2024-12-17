@@ -11,6 +11,13 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	writeWait      = 10 * time.Second // Time allowed to write a message
+	pongWait       = 60 * time.Second // Time allowed to read pong
+	pingPeriod     = (pongWait * 9) / 10
+	maxMessageSize = 512
+)
+
 type application struct {
 	config config
 	store  store.Storage
@@ -41,6 +48,7 @@ func (app *application) mount() http.Handler {
 
 	r.Route("/v1", func(r chi.Router) {
 		r.Get("/health", app.healthCheckHandler)
+		r.Get("/ws", app.healthCheckHandler)
 		r.Post("/create-room", app.createRoomHandler)
 	})
 
