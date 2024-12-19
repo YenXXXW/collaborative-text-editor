@@ -25,6 +25,7 @@ type Client struct {
 type RoomManager struct {
 	Rooms map[string]map[*Client]bool
 	Mutex sync.Mutex
+	App   application
 }
 
 func (rm *RoomManager) JoinRoom(roomId string, client *Client) {
@@ -36,6 +37,18 @@ func (rm *RoomManager) JoinRoom(roomId string, client *Client) {
 	}
 
 	rm.Rooms[roomId][client] = true
+}
+
+func (app *application) checkRoom(w http.ResponseWriter, r *http.Request, rooomId string) bool {
+	ctx := r.Context()
+	exits, err := app.store.Rooms.CheckRoom(ctx, rooomId)
+
+	if err != nil {
+		app.internalServerError(w, r, err)
+	}
+
+	return exits
+
 }
 
 func (rm *RoomManager) LeaveRoom(roomId string, client *Client) {
@@ -119,19 +132,33 @@ func (app *application) createRoomHandler(w http.ResponseWriter, r *http.Request
 }
 
 func (app *application) joinRoomHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("a client trying to connet")
+
+	roomID := r.URL.Query().Get("roomID")
+
+	if roomID == "" {
+		err := errors.New("Room Id is required")
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	exists, err := app.store.Rooms.CheckRoom(r.Context(), roomID)
+
+	if err != nil {
+		app.internalServerError(w, r, err)
+		return
+	}
+
+	if !exists {
+		app.badRequestResponse(w, r, errors.New("Room does not exists"))
+		return
+	}
+
 	conn, err := upgrader.Upgrade(w, r, nil)
+
 	if err != nil {
 		app.internalServerError(w, r, err)
 		log.Println(err)
 		return
-	}
-
-	roomID := r.URL.Query().Get("roomID")
-	if roomID == "" {
-		err := errors.New("Room Id is required")
-		app.badRequestResponse(w, r, err)
-		conn.Close()
 	}
 
 	client := &Client{

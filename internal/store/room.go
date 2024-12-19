@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+
 	"github.com/lib/pq"
 )
 
@@ -40,13 +41,16 @@ func (s *RoomStore) Create(ctx context.Context, room *Room) (*Room, error) {
 }
 
 func (s *RoomStore) CheckRoom(ctx context.Context, roomId string) (bool, error) {
-	query := `SELECT 1 FROM rooms WHERE room_id is ? LIMIT 1`
+
+	var dummy int
+
+	query := `SELECT 1 FROM rooms WHERE id = $1 LIMIT 1`
 
 	err := s.db.QueryRowContext(
 		ctx,
 		query,
 		roomId,
-	).Scan()
+	).Scan(&dummy)
 
 	if err == sql.ErrNoRows {
 		return false, nil

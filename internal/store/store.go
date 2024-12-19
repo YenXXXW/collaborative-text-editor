@@ -12,6 +12,7 @@ type Storage struct {
 
 	Rooms interface {
 		Create(context.Context, *Room) (*Room, error)
+		CheckRoom(context.Context, string) (bool, error)
 	}
 }
 
