@@ -15,7 +15,7 @@ const (
 	writeWait      = 10 * time.Second // Time allowed to write a message
 	pongWait       = 60 * time.Second // Time allowed to read pong
 	pingPeriod     = (pongWait * 9) / 10
-	maxMessageSize = 512
+	maxMessageSize = 65536
 )
 
 type application struct {
@@ -48,7 +48,7 @@ func (app *application) mount() http.Handler {
 
 	r.Route("/v1", func(r chi.Router) {
 		r.Get("/health", app.healthCheckHandler)
-		r.Get("/ws", app.healthCheckHandler)
+		r.Get("/ws", app.joinRoomHandler)
 		r.Post("/create-room", app.createRoomHandler)
 	})
 

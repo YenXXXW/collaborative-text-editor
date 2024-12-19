@@ -119,6 +119,7 @@ func (app *application) createRoomHandler(w http.ResponseWriter, r *http.Request
 }
 
 func (app *application) joinRoomHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("a client trying to connet")
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		app.internalServerError(w, r, err)
@@ -129,7 +130,7 @@ func (app *application) joinRoomHandler(w http.ResponseWriter, r *http.Request) 
 	roomID := r.URL.Query().Get("roomID")
 	if roomID == "" {
 		err := errors.New("Room Id is required")
-		app.internalServerError(w, r, err)
+		app.badRequestResponse(w, r, err)
 		conn.Close()
 	}
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"github.com/lib/pq"
-	"log"
 )
 
 type Room struct {
@@ -19,7 +18,6 @@ type RoomStore struct {
 }
 
 func (s *RoomStore) Create(ctx context.Context, room *Room) (*Room, error) {
-	log.Print("room", room)
 	query := `INSERT INTO	rooms (users_in_room, creator_id) VALUES ($1, $2) RETURNING id, users_in_room, creator_id, created_at`
 
 	err := s.db.QueryRowContext(
@@ -39,4 +37,24 @@ func (s *RoomStore) Create(ctx context.Context, room *Room) (*Room, error) {
 	}
 
 	return room, nil
+}
+
+func (s *RoomStore) CheckRoom(ctx context.Context, roomId string) (bool, error) {
+	query := `SELECT 1 FROM rooms WHERE room_id is ? LIMIT 1`
+
+	err := s.db.QueryRowContext(
+		ctx,
+		query,
+		roomId,
+	).Scan()
+
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
