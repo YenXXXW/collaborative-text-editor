@@ -90,6 +90,11 @@ var roomManager = NewRoomManager()
 var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 	ReadBufferSize:  1024,
+	CheckOrigin: func(r *http.Request) bool {
+
+		origin := r.Header.Get("Origin")
+		return origin == "http://localhost:5173"
+	},
 }
 
 func (app *application) createRoomHandler(w http.ResponseWriter, r *http.Request) {

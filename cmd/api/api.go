@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 	"github.com/yenxxxw/collaborative-text-editor/internal/store"
 	"go.uber.org/zap"
 )
@@ -46,6 +47,15 @@ func (app *application) mount() http.Handler {
 
 	r.Use(middleware.Timeout(60 * time.Second))
 
+	r.Use(cors.Handler(cors.Options{
+		AllowOriginFunc:  AllowOriginFunc,
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: true,
+		MaxAge:           300, // Maximum value not ignored by any of major browsers
+	}))
+
 	r.Route("/v1", func(r chi.Router) {
 		r.Get("/health", app.healthCheckHandler)
 		r.Get("/ws", app.joinRoomHandler)
@@ -65,4 +75,11 @@ func (app *application) run(mux http.Handler) error {
 	}
 	log.Printf("server has startted at %s", app.config.addr)
 	return srv.ListenAndServe()
+}
+
+func AllowOriginFunc(r *http.Request, origin string) bool {
+	if origin == "http://localhost:5173" {
+		return true
+	}
+	return false
 }

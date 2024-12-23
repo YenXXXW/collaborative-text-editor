@@ -1,6 +1,7 @@
 import './App.css'
 import { Routes, Route } from 'react-router-dom'
 import Home from './pages/home'
+import JoinRoomPage from './pages/JoinRoom'
 
 function App() {
 
@@ -10,6 +11,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
 
+        <Route path="/join-room" element={<JoinRoomPage />} />
       </Routes>
     </>
   )
