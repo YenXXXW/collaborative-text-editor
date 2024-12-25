@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import Editor from "@/components/Editor"
 
 export default function JoinRoomPage() {
 
@@ -48,6 +49,7 @@ export default function JoinRoomPage() {
           ?
           <>
             {message}
+            <Editor />
             <Input type="text" placeholder="message" onChange={(e) => handleChange(e.target.value)} />
           </>
           :
