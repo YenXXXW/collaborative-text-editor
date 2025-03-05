@@ -78,8 +78,5 @@ func (app *application) run(mux http.Handler) error {
 }
 
 func AllowOriginFunc(r *http.Request, origin string) bool {
-	if origin == "http://localhost:5173" {
-		return true
-	}
-	return false
+	return origin == "http://localhost:5173"
 }

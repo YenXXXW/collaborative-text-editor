@@ -1,19 +1,22 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/yenxxxw/collaborative-text-editor/internal/store"
+	//"github.com/yenxxxw/collaborative-text-editor/internal/store"
 )
 
 type CreateRoomPayload struct {
-	UsersInRoom []int64 `json:"users_in_room"`
-	CeatorId    int64   `json:"creator_id"`
+	UsersInRoom []string `json:"users_in_room"`
+	CreatorId   string   `json:"creator_id"`
 }
 
 type Client struct {
@@ -22,10 +25,46 @@ type Client struct {
 	Send   chan []byte
 }
 
+type Room struct {
+	Program string
+	Clients map[*Client]bool
+}
+
 type RoomManager struct {
-	Rooms map[string]map[*Client]bool
+	Rooms map[string]*Room
 	Mutex sync.Mutex
 	App   application
+}
+
+type ChangeType string
+
+const (
+	InitChange   ChangeType = "init"
+	UpdateChange ChangeType = "update"
+)
+
+type Change struct {
+	StartLineNumber int    `json:"startLineNumber"`
+	EndLineNumber   int    `json:"endLineNumber"`
+	StartColumn     int    `json:"startColumn"`
+	EndColumn       int    `json:"endColumn"`
+	Text            string `json:"text"`
+	RangeLength     int    `json:"rangeLength"`
+}
+
+type Message struct {
+	RoomId  string     `json:"roomId"`
+	Change  *Change    `json:"change"`
+	Type    ChangeType `json:"type"`
+	UserId  string     `json:"userId"`
+	Program *string    `json:"program,omitempty"`
+}
+
+func CreateRoom(client *Client) *Room {
+	return &Room{
+		Program: "// some comments",
+		Clients: make(map[*Client]bool),
+	}
 }
 
 func (rm *RoomManager) JoinRoom(roomId string, client *Client) {
@@ -33,33 +72,30 @@ func (rm *RoomManager) JoinRoom(roomId string, client *Client) {
 	defer rm.Mutex.Unlock()
 
 	if rm.Rooms[roomId] == nil {
-		rm.Rooms[roomId] = make(map[*Client]bool)
+		rm.Rooms[roomId] = CreateRoom(client)
 	}
 
-	rm.Rooms[roomId][client] = true
+	rm.Rooms[roomId].Clients[client] = true
 }
 
-func (app *application) checkRoom(w http.ResponseWriter, r *http.Request, rooomId string) bool {
-	ctx := r.Context()
-	exits, err := app.store.Rooms.CheckRoom(ctx, rooomId)
-
-	if err != nil {
-		app.internalServerError(w, r, err)
-	}
-
-	return exits
-
+func (rm *RoomManager) checkRoom(rooomId string) bool {
+	return rm.Rooms[rooomId] != nil
 }
 
 func (rm *RoomManager) LeaveRoom(roomId string, client *Client) {
 	rm.Mutex.Lock()
 	defer rm.Mutex.Unlock()
 
-	if clients, ok := rm.Rooms[roomId]; ok {
-		delete(clients, client)
-		if len(clients) == 0 {
-			delete(rm.Rooms, roomId)
-		}
+	room, ok := rm.Rooms[roomId]
+
+	if !ok {
+		return
+	}
+
+	delete(room.Clients, client)
+
+	if len(room.Clients) == 0 {
+		delete(rm.Rooms, roomId)
 	}
 }
 
@@ -67,8 +103,8 @@ func (rm *RoomManager) BroadcastToRoom(roomId string, message []byte) {
 	rm.Mutex.Lock()
 	defer rm.Mutex.Unlock()
 
-	if clients, ok := rm.Rooms[roomId]; ok {
-		for client := range clients {
+	if room, ok := rm.Rooms[roomId]; ok {
+		for client := range room.Clients {
 			select {
 			case client.Send <- message:
 
@@ -81,7 +117,7 @@ func (rm *RoomManager) BroadcastToRoom(roomId string, message []byte) {
 
 func NewRoomManager() *RoomManager {
 	return &RoomManager{
-		Rooms: make(map[string]map[*Client]bool),
+		Rooms: make(map[string]*Room),
 	}
 }
 
@@ -97,64 +133,26 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func (app *application) createRoomHandler(w http.ResponseWriter, r *http.Request) {
-	var payload CreateRoomPayload
-	if err := readJSON(w, r, &payload); err != nil {
-		app.badRequestResponse(w, r, err)
-		return
-	}
-
-	room := &store.Room{
-		UsersInRoom: payload.UsersInRoom,
-		CeatorId:    payload.CeatorId,
-	}
-
-	ctx := r.Context()
-
-	var createdRoom *store.Room
-	var err error
-
-	if createdRoom, err = app.store.Rooms.Create(ctx, room); err != nil {
-		app.internalServerError(w, r, err)
-		return
-	}
-
-	program := &store.Program{
-		RoomId:   createdRoom.ID,
-		Language: "js",
-		Code:     "write something...",
-	}
-
-	if err := app.store.Programs.Create(ctx, program); err != nil {
-		app.internalServerError(w, r, err)
-		return
-	}
-
-	if err := app.jsonResponse(w, http.StatusCreated, room); err != nil {
-		app.internalServerError(w, r, err)
-		return
-	}
-}
-
 func (app *application) joinRoomHandler(w http.ResponseWriter, r *http.Request) {
+	roomId := r.URL.Query().Get("roomId")
+	userId := r.URL.Query().Get("userId")
 
-	roomID := r.URL.Query().Get("roomID")
-
-	if roomID == "" {
-		err := errors.New("Room Id is required")
+	if roomId == "" {
+		err := errors.New("room Id is required")
 		app.badRequestResponse(w, r, err)
 		return
 	}
 
-	exists, err := app.store.Rooms.CheckRoom(r.Context(), roomID)
-
-	if err != nil {
-		app.internalServerError(w, r, err)
+	if userId == "" {
+		err := errors.New("user Id is required")
+		app.badRequestResponse(w, r, err)
 		return
 	}
+
+	exists := roomManager.checkRoom(roomId)
 
 	if !exists {
-		app.badRequestResponse(w, r, errors.New("Room does not exists"))
+		app.badRequestResponse(w, r, errors.New("room does not exists"))
 		return
 	}
 
@@ -168,18 +166,75 @@ func (app *application) joinRoomHandler(w http.ResponseWriter, r *http.Request) 
 
 	client := &Client{
 		Conn:   conn,
-		RoomId: roomID,
+		RoomId: roomId,
 		Send:   make(chan []byte),
 	}
 
-	roomManager.JoinRoom(roomID, client)
+	roomManager.JoinRoom(roomId, client)
 
 	go handleClientWrites(client)
 	go handleClientReads(client)
+
+	room := roomManager.Rooms[roomId]
+
+	var initMessage = Message{
+		RoomId:  roomId,
+		Change:  nil,
+		Type:    InitChange,
+		UserId:  userId,
+		Program: &room.Program,
+	}
+	message, err := json.Marshal(initMessage)
+	if err != nil {
+		log.Println("Error marshaling initial program:", err)
+		return
+	}
+
+	client.Send <- message
+
+}
+
+func applyChange(program string, change *Change) string {
+	lines := strings.Split(program, "\n")
+
+	startLineIdx := change.StartLineNumber - 1
+	endLineIdx := change.EndLineNumber - 1
+
+	// Ensure the indices are within bounds
+	if startLineIdx >= len(lines) {
+		return program
+	}
+
+	// Deletion case: Remove characters or lines
+	if change.Text == "" && change.RangeLength > 0 {
+		if startLineIdx == endLineIdx { // Deleting within a single line
+			line := lines[startLineIdx]
+			if change.StartColumn-1 < len(line) {
+				lines[startLineIdx] = line[:change.StartColumn-1] + line[change.EndColumn-1:]
+			}
+		} else { // Deleting multiple lines
+			lines[startLineIdx] = lines[startLineIdx][:change.StartColumn-1] // Keep start part
+			lines[endLineIdx] = lines[endLineIdx][change.EndColumn-1:]       // Keep end part
+			lines = append(lines[:startLineIdx+1], lines[endLineIdx+1:]...)  // Remove in-between lines
+		}
+	} else { // Normal text insertion or replacement
+		if startLineIdx == endLineIdx { // Single-line change
+			line := lines[startLineIdx]
+			if change.StartColumn-1 > len(line) {
+				line += strings.Repeat(" ", change.StartColumn-1-len(line))
+			}
+			lines[startLineIdx] = line[:change.StartColumn-1] + change.Text + line[change.EndColumn-1:]
+		} else { // Multi-line change
+			startLine := lines[startLineIdx][:change.StartColumn-1] + change.Text
+			lines[startLineIdx] = startLine
+			lines[endLineIdx] = lines[endLineIdx][change.EndColumn-1:]
+		}
+	}
+
+	return strings.Join(lines, "\n")
 }
 
 func handleClientReads(client *Client) {
-
 	defer func() {
 		roomManager.LeaveRoom(client.RoomId, client)
 		client.Conn.Close()
@@ -199,9 +254,22 @@ func handleClientReads(client *Client) {
 			break
 		}
 
+		var msg Message
+		if err := json.Unmarshal(message, &msg); err != nil {
+			log.Printf("Error unmarshalling message: %v", err)
+			break
+		}
+
+		roomManager.Mutex.Lock()
+		room, ok := roomManager.Rooms[client.RoomId]
+		if ok && msg.Change != nil {
+			room.Program = applyChange(room.Program, msg.Change)
+		}
+
+		roomManager.Mutex.Unlock()
+
 		roomManager.BroadcastToRoom(client.RoomId, message)
 	}
-
 }
 
 func handleClientWrites(client *Client) {
@@ -232,4 +300,54 @@ func handleClientWrites(client *Client) {
 			}
 		}
 	}
+}
+
+func (app *application) createRoomHandler(w http.ResponseWriter, r *http.Request) {
+	// Parse the request body
+	var payload CreateRoomPayload
+
+	err := json.NewDecoder(r.Body).Decode(&payload)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	// Validate the payload
+	if payload.CreatorId == "" {
+		app.badRequestResponse(w, r, errors.New("creator_id is required"))
+		return
+	}
+
+	// Generate a unique room ID (you might want to use UUID in production)
+	roomID := generateRoomID()
+
+	// Create a new room
+	client := &Client{
+		RoomId: roomID,
+		Send:   make(chan []byte),
+	}
+
+	room := CreateRoom(client)
+
+	roomManager.Mutex.Lock()
+	roomManager.Rooms[roomID] = room
+	roomManager.Mutex.Unlock()
+
+	// Return the room ID to the client
+	response := map[string]string{
+		"room_id": roomID,
+	}
+
+	err = app.jsonResponse(w, http.StatusCreated, response)
+	if err != nil {
+		app.internalServerError(w, r, err)
+		return
+	}
+}
+
+func generateRoomID() string {
+	// Simple implementation - in production, use a more robust method
+	roomID := fmt.Sprintf("%d", time.Now().UnixNano()/1000000000)
+	fmt.Printf("Generated room ID: %s\n", roomID)
+	return roomID
 }

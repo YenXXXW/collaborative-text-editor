@@ -1,6 +1,6 @@
 import axiosInstance from "@/lib/axios"
 
-export const RoomCreateService = async (creatorId: number) => {
+export const RoomCreateService = async (creatorId: string) => {
   const payload = {
     "creator_id": creatorId,
     "users_in_room": [creatorId]

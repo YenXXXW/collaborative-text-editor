@@ -1,64 +1,49 @@
-import { useEffect, useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import Editor from "@/components/Editor"
+import Editor from "@/components/EditorReact"
+import { useRoom } from "@/context/RoomContext"
 
 export default function JoinRoomPage() {
+  const { joinRoom, hasJoined, remoteChange, sendChange, initValue } = useRoom()
+  const [roomId, setRoomId] = useState<number | null>(null)
 
-  const [message, setMessage] = useState("")
-  const [socket, setSocket] = useState<null | WebSocket>(null)
-  const [hasJoined, setHasJoined] = useState(false)
-
-  const handleJoinRoom = () => {
-
-    const socket = new WebSocket("ws://localhost:8080/v1/ws?roomID=12")
-
-    socket.onopen = (event) => {
-      setHasJoined(true)
+  useEffect(() => {
+    console.log(initValue)
+  }, [initValue])
+  if (hasJoined) {
+    if (initValue === "") {
+      return (
+        <div>
+          loading
+        </div>
+      )
     }
 
-    socket.onmessage = (message) => {
-      setMessage(message.data)
-    }
 
-    socket.onerror = (error) => {
-      console.log("error conneting to the socket", error)
-    }
-
-    socket.onclose = () => {
-      console.log("socket connection closed")
-    }
-
-    setSocket(socket)
+    return (
+      <>
+        <Editor
+          onChangeHandler={sendChange}
+          remoteChange={remoteChange}
+          initialValue={initValue}
+        />
+      </>
+    )
   }
-
-  const handleChange = (message: string) => {
-    if (socket && socket.readyState == WebSocket.OPEN) {
-      socket.send(message)
-    }
-
-  }
-
-
 
   return (
     <>
-
-      {
-        hasJoined
-          ?
-          <>
-            {message}
-            <Editor />
-            <Input type="text" placeholder="message" onChange={(e) => handleChange(e.target.value)} />
-          </>
-          :
-          <>
-            <Input type="number" placeholder="RoomId" />
-            <Button onClick={handleJoinRoom}>Join</Button>
-          </>
-      }
-
+      <div className="flex flex-col gap-4 items-center justify-center min-h-screen">
+        <div className="flex gap-2">
+          <Input
+            type="number"
+            placeholder="Room ID"
+            onChange={(e) => setRoomId(Number(e.target.value))}
+          />
+          <Button onClick={() => roomId && joinRoom(roomId)}>Join Room</Button>
+        </div>
+      </div>
     </>
   )
 }
