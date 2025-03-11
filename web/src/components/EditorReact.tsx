@@ -77,7 +77,8 @@ export default function EditorReact({
 
   return (
     <Editor
-      height="90vh"
+      height="100vh"
+      theme='vs-dark'
       defaultLanguage="javascript"
       defaultValue={initialValue}
       onMount={handleEditorDidMount}
@@ -85,6 +86,7 @@ export default function EditorReact({
       options={{
         minimap: { enabled: false },
         automaticLayout: true,
+        padding: { top: 10 }
       }}
     />
   );
