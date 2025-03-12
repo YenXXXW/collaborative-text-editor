@@ -2,22 +2,24 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { RoomCreateService } from '@/services/roomCreateService'
 import { useRoom } from '@/context/RoomContext'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 export default function Home() {
   const { joinRoom, hasJoined, userId } = useRoom()
   const navigate = useNavigate()
+  const [roomId, setRoomId] = useState("")
 
   const createRoom = async () => {
     const res = await RoomCreateService(userId)
     console.log(res)
+    setRoomId(res.room_id)
     joinRoom(res.room_id)
   }
 
   // Watch for hasJoined to change and navigate after connection is established
   useEffect(() => {
     if (hasJoined) {
-      navigate("/join-room")
+      navigate(`/room/${roomId}`)
     }
   }, [hasJoined, navigate])
 

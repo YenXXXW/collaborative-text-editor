@@ -58,6 +58,7 @@ type Message struct {
 	Type    ChangeType `json:"type"`
 	UserId  string     `json:"userId"`
 	Program *string    `json:"program,omitempty"`
+	Event   *string    `json:"event,omitempty"`
 }
 
 func CreateRoom(client *Client) *Room {
@@ -131,6 +132,10 @@ var upgrader = websocket.Upgrader{
 		origin := r.Header.Get("Origin")
 		return origin == "http://localhost:5173"
 	},
+}
+
+func pointerToString(s string) *string {
+	return &s
 }
 
 func (app *application) joinRoomHandler(w http.ResponseWriter, r *http.Request) {
@@ -303,7 +308,6 @@ func handleClientWrites(client *Client) {
 }
 
 func (app *application) createRoomHandler(w http.ResponseWriter, r *http.Request) {
-	// Parse the request body
 	var payload CreateRoomPayload
 
 	err := json.NewDecoder(r.Body).Decode(&payload)
@@ -312,16 +316,13 @@ func (app *application) createRoomHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Validate the payload
 	if payload.CreatorId == "" {
 		app.badRequestResponse(w, r, errors.New("creator_id is required"))
 		return
 	}
 
-	// Generate a unique room ID (you might want to use UUID in production)
 	roomID := generateRoomID()
 
-	// Create a new room
 	client := &Client{
 		RoomId: roomID,
 		Send:   make(chan []byte),
@@ -333,7 +334,6 @@ func (app *application) createRoomHandler(w http.ResponseWriter, r *http.Request
 	roomManager.Rooms[roomID] = room
 	roomManager.Mutex.Unlock()
 
-	// Return the room ID to the client
 	response := map[string]string{
 		"room_id": roomID,
 	}
@@ -346,7 +346,6 @@ func (app *application) createRoomHandler(w http.ResponseWriter, r *http.Request
 }
 
 func generateRoomID() string {
-	// Simple implementation - in production, use a more robust method
 	roomID := fmt.Sprintf("%d", time.Now().UnixNano()/1000000000)
 	fmt.Printf("Generated room ID: %s\n", roomID)
 	return roomID

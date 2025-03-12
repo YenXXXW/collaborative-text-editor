@@ -18,6 +18,7 @@ interface RoomContextType {
   initValue: string,
   joinRoom: (roomId: number) => void;
   sendChange: (change: Change) => void;
+  sendJoined: () => void;
   userId: string;
 }
 
@@ -47,6 +48,13 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       if (data.type === "init") {
         setInitValue(data.program)
       }
+      if (data.event === "new_user_joined") {
+        if (data.userId !== userId) {
+          alert(`${userId} has joined`)
+
+        }
+      }
+
     };
 
     newSocket.onerror = (error) => {
@@ -73,8 +81,20 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const sendJoined = () => {
+    if (socket?.readyState === WebSocket.OPEN) {
+      socket.send(
+        JSON.stringify({
+          event: "new_user_joined",
+          change: null,
+          userId: userId
+        })
+      )
+    }
+  }
+
   return (
-    <RoomContext.Provider value={{ socket, initValue, hasJoined, remoteChange, joinRoom, sendChange, userId }}>
+    <RoomContext.Provider value={{ sendJoined, socket, initValue, hasJoined, remoteChange, joinRoom, sendChange, userId }}>
       {children}
     </RoomContext.Provider>
   );
