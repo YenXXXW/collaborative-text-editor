@@ -20,6 +20,7 @@ type CreateRoomPayload struct {
 }
 
 type Client struct {
+	UserId string
 	Conn   *websocket.Conn
 	RoomId string
 	Send   chan []byte
@@ -53,12 +54,13 @@ type Change struct {
 }
 
 type Message struct {
-	RoomId  string     `json:"roomId"`
-	Change  *Change    `json:"change"`
-	Type    ChangeType `json:"type"`
-	UserId  string     `json:"userId"`
-	Program *string    `json:"program,omitempty"`
-	Event   *string    `json:"event,omitempty"`
+	RoomId      string     `json:"roomId"`
+	Change      *Change    `json:"change"`
+	Type        ChangeType `json:"type"`
+	UserId      string     `json:"userId"`
+	Program     *string    `json:"program,omitempty"`
+	Event       *string    `json:"event,omitempty"`
+	UsersInRoom []string   `json:"usersInRoom,omitempty"`
 }
 
 func CreateRoom(client *Client) *Room {
@@ -170,6 +172,7 @@ func (app *application) joinRoomHandler(w http.ResponseWriter, r *http.Request) 
 	}
 
 	client := &Client{
+		UserId: userId,
 		Conn:   conn,
 		RoomId: roomId,
 		Send:   make(chan []byte),
@@ -267,8 +270,17 @@ func handleClientReads(client *Client) {
 
 		roomManager.Mutex.Lock()
 		room, ok := roomManager.Rooms[client.RoomId]
-		if ok && msg.Change != nil {
-			room.Program = applyChange(room.Program, msg.Change)
+		if ok {
+			if msg.Change != nil {
+				room.Program = applyChange(room.Program, msg.Change)
+			}
+			if msg.Event != nil && *msg.Event == "new_user_joined" {
+				var usersInRoom []string
+				for client := range room.Clients {
+					usersInRoom = append(usersInRoom, client.UserId)
+				}
+				msg.UsersInRoom = usersInRoom
+			}
 		}
 
 		roomManager.Mutex.Unlock()
@@ -324,6 +336,7 @@ func (app *application) createRoomHandler(w http.ResponseWriter, r *http.Request
 	roomID := generateRoomID()
 
 	client := &Client{
+		UserId: payload.CreatorId,
 		RoomId: roomID,
 		Send:   make(chan []byte),
 	}
