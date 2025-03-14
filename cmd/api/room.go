@@ -280,12 +280,17 @@ func handleClientReads(client *Client) {
 					usersInRoom = append(usersInRoom, client.UserId)
 				}
 				msg.UsersInRoom = usersInRoom
+				log.Printf("msg %v", message)
 			}
 		}
-
+		jsonMsg, err := json.Marshal(msg)
+		if err != nil {
+			log.Printf("Error marshalling message: %v", err)
+			continue
+		}
 		roomManager.Mutex.Unlock()
 
-		roomManager.BroadcastToRoom(client.RoomId, message)
+		roomManager.BroadcastToRoom(client.RoomId, jsonMsg)
 	}
 }
 

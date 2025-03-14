@@ -20,6 +20,7 @@ interface RoomContextType {
   sendChange: (change: Change) => void;
   sendJoined: () => void;
   userId: string;
+  usersInRoom: string[]
 }
 
 const RoomContext = createContext<RoomContextType | undefined>(undefined);
@@ -30,6 +31,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   const [remoteChange, setRemoteChange] = useState<Change | null>(null);
   const [initValue, setInitValue] = useState("")
   const [userId] = useState(uuid())
+  const [usersInRoom, setUsersInRoom] = useState<string[]>([])
 
   const joinRoom = (roomId: number) => {
     console.log(userId)
@@ -51,7 +53,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       if (data.event === "new_user_joined") {
         if (data.userId !== userId) {
           alert(`${userId} has joined`)
-
+          setUsersInRoom(data.usersInRoom)
         }
       }
 
@@ -94,7 +96,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <RoomContext.Provider value={{ sendJoined, socket, initValue, hasJoined, remoteChange, joinRoom, sendChange, userId }}>
+    <RoomContext.Provider value={{ sendJoined, socket, initValue, hasJoined, remoteChange, joinRoom, sendChange, userId, usersInRoom }}>
       {children}
     </RoomContext.Provider>
   );

@@ -15,8 +15,6 @@ export default function JoinRoomPage() {
       if (initValue === "") {
         return
       }
-
-
       sendJoined()
       navigate(`/room/${roomId}`)
     }
