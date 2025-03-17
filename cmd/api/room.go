@@ -17,13 +17,15 @@ import (
 type CreateRoomPayload struct {
 	UsersInRoom []string `json:"users_in_room"`
 	CreatorId   string   `json:"creator_id"`
+	CreatorName string   `json:"creator_name"`
 }
 
 type Client struct {
-	UserId string
-	Conn   *websocket.Conn
-	RoomId string
-	Send   chan []byte
+	UserId   string
+	UserName string
+	Conn     *websocket.Conn
+	RoomId   string
+	Send     chan []byte
 }
 
 type Room struct {
@@ -53,6 +55,11 @@ type Change struct {
 	RangeLength     int    `json:"rangeLength"`
 }
 
+type User struct {
+	UserId   string `json:"userId"`
+	UserName string `json:"userName"`
+}
+
 type Message struct {
 	RoomId      string     `json:"roomId"`
 	Change      *Change    `json:"change"`
@@ -60,7 +67,7 @@ type Message struct {
 	UserId      string     `json:"userId"`
 	Program     *string    `json:"program,omitempty"`
 	Event       *string    `json:"event,omitempty"`
-	UsersInRoom []string   `json:"usersInRoom,omitempty"`
+	UsersInRoom []User     `json:"usersInRoom,omitempty"`
 }
 
 func CreateRoom(client *Client) *Room {
@@ -143,6 +150,7 @@ func pointerToString(s string) *string {
 func (app *application) joinRoomHandler(w http.ResponseWriter, r *http.Request) {
 	roomId := r.URL.Query().Get("roomId")
 	userId := r.URL.Query().Get("userId")
+	username := r.URL.Query().Get("username")
 
 	if roomId == "" {
 		err := errors.New("room Id is required")
@@ -152,6 +160,12 @@ func (app *application) joinRoomHandler(w http.ResponseWriter, r *http.Request) 
 
 	if userId == "" {
 		err := errors.New("user Id is required")
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	if username == "" {
+		err := errors.New("username is required")
 		app.badRequestResponse(w, r, err)
 		return
 	}
@@ -172,10 +186,11 @@ func (app *application) joinRoomHandler(w http.ResponseWriter, r *http.Request) 
 	}
 
 	client := &Client{
-		UserId: userId,
-		Conn:   conn,
-		RoomId: roomId,
-		Send:   make(chan []byte),
+		UserId:   userId,
+		UserName: username,
+		Conn:     conn,
+		RoomId:   roomId,
+		Send:     make(chan []byte),
 	}
 
 	roomManager.JoinRoom(roomId, client)
@@ -275,12 +290,14 @@ func handleClientReads(client *Client) {
 				room.Program = applyChange(room.Program, msg.Change)
 			}
 			if msg.Event != nil && *msg.Event == "new_user_joined" {
-				var usersInRoom []string
+				var usersInRoom []User
 				for client := range room.Clients {
-					usersInRoom = append(usersInRoom, client.UserId)
+					usersInRoom = append(usersInRoom, User{
+						UserId:   client.UserId,
+						UserName: client.UserName,
+					})
 				}
 				msg.UsersInRoom = usersInRoom
-				log.Printf("msg %v", message)
 			}
 		}
 		jsonMsg, err := json.Marshal(msg)
@@ -289,7 +306,7 @@ func handleClientReads(client *Client) {
 			continue
 		}
 		roomManager.Mutex.Unlock()
-
+		log.Printf("Formatted message: %s", string(jsonMsg))
 		roomManager.BroadcastToRoom(client.RoomId, jsonMsg)
 	}
 }
@@ -338,12 +355,17 @@ func (app *application) createRoomHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	if payload.CreatorName == "" {
+		app.badRequestResponse(w, r, errors.New("creator name is required"))
+	}
+
 	roomID := generateRoomID()
 
 	client := &Client{
-		UserId: payload.CreatorId,
-		RoomId: roomID,
-		Send:   make(chan []byte),
+		UserId:   payload.CreatorId,
+		UserName: payload.CreatorName,
+		RoomId:   roomID,
+		Send:     make(chan []byte),
 	}
 
 	room := CreateRoom(client)
@@ -353,7 +375,8 @@ func (app *application) createRoomHandler(w http.ResponseWriter, r *http.Request
 	roomManager.Mutex.Unlock()
 
 	response := map[string]string{
-		"room_id": roomID,
+		"room_id":  roomID,
+		"username": payload.CreatorName,
 	}
 
 	err = app.jsonResponse(w, http.StatusCreated, response)

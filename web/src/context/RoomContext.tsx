@@ -16,7 +16,7 @@ interface RoomContextType {
   hasJoined: boolean;
   remoteChange: Change | null;
   initValue: string,
-  joinRoom: (roomId: number) => void;
+  joinRoom: (roomId: number, username: string) => void;
   sendChange: (change: Change) => void;
   sendJoined: () => void;
   userId: string;
@@ -33,9 +33,9 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   const [userId] = useState(uuid())
   const [usersInRoom, setUsersInRoom] = useState<string[]>([])
 
-  const joinRoom = (roomId: number) => {
+  const joinRoom = (roomId: number, username: string) => {
     console.log(userId)
-    const newSocket = new WebSocket(`ws://localhost:8080/v1/ws?roomId=${roomId}&userId=${userId}`);
+    const newSocket = new WebSocket(`ws://localhost:8080/v1/ws?roomId=${roomId}&userId=${userId}&username=${username}`);
 
     newSocket.onopen = () => {
       setHasJoined(true);
@@ -51,9 +51,10 @@ export function RoomProvider({ children }: { children: ReactNode }) {
         setInitValue(data.program)
       }
       if (data.event === "new_user_joined") {
+
+        setUsersInRoom(data.usersInRoom)
         if (data.userId !== userId) {
           alert(`${userId} has joined`)
-          setUsersInRoom(data.usersInRoom)
         }
       }
 

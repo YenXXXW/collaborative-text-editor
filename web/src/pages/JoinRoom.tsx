@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom"
 export default function JoinRoomPage() {
   const { sendJoined, joinRoom, hasJoined, initValue } = useRoom()
   const [roomId, setRoomId] = useState<number | null>(null)
+  const [username, setUsername] = useState("")
 
   const navigate = useNavigate()
 
@@ -28,12 +29,22 @@ export default function JoinRoomPage() {
     <>
       <div className="flex flex-col gap-4 items-center justify-center min-h-screen">
         <div className="flex gap-2">
+
+          <Input
+            type="text"
+            value={username}
+            placeholder='Enter UserName'
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)}
+          />
           <Input
             type="number"
             placeholder="Room ID"
             onChange={(e) => setRoomId(Number(e.target.value))}
           />
-          <Button onClick={() => roomId && joinRoom(roomId)}>Join Room</Button>
+          <Button
+            className={`${username === "" && "opacity-90 pointer-events-none"}`}
+            onClick={() => roomId && joinRoom(roomId, username)}
+          >Join Room</Button>
         </div>
       </div>
     </>

@@ -12,6 +12,8 @@ export default function Room() {
 
   useEffect(() => {
     if (usersInRoom.length > 0) {
+      console.log(usersInRoom)
+
       setTotalUsersInRoom(usersInRoom)
 
     }
@@ -35,9 +37,9 @@ export default function Room() {
               Users in Room
               {
                 totalUsersInRoom.map(user =>
-                  <>
+                  <div key={user}>
                     {user}
-                  </>
+                  </div>
                 )
               }
             </div>
