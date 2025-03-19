@@ -1,19 +1,27 @@
 import { useEffect, useState } from "react"
 import Editor from "@/components/EditorReact"
 import { useRoom } from "@/context/RoomContext"
-import { useParams } from 'react-router-dom'
+import { useLocation, useParams } from 'react-router-dom'
+import { User } from "@/model/User"
 
 export default function Room() {
+  const location = useLocation();
+  const userName = location.state?.username;
+
 
   const { roomId } = useParams()
-  const { userId, remoteChange, sendChange, initValue, usersInRoom } = useRoom()
-  const [totalUsersInRoom, setTotalUsersInRoom] = useState<string[]>([userId]);
+  const { leaveRoom, userId, remoteChange, sendChange, initValue, usersInRoom } = useRoom()
+  const [language, setLanguage] = useState('javascript');
+  const [totalUsersInRoom, setTotalUsersInRoom] = useState<User[]>([
+    {
+      userId,
+      userName: userName ?? "wai"
+    }
+  ]);
 
 
   useEffect(() => {
     if (usersInRoom.length > 0) {
-      console.log(usersInRoom)
-
       setTotalUsersInRoom(usersInRoom)
 
     }
@@ -37,12 +45,24 @@ export default function Room() {
               Users in Room
               {
                 totalUsersInRoom.map(user =>
-                  <div key={user}>
-                    {user}
+                  <div key={user.userId}>
+                    {user.userName}
                   </div>
                 )
               }
             </div>
+            <select
+              onChange={(e) => setLanguage(e.target.value)}
+              className="bg-black"
+            >
+              <option value={"javascript"}>JavaScript</option>
+              <option value={"python"}>Python</option>
+              <option value={"cpp"}>C++</option>
+              <option value={"java"}>Java</option>
+              <option value={"go"}>Go</option>
+              <option value={"rust"}>Rust</option>
+              <option value={"php"}>PhP</option>
+            </select>
             <button>
               New
             </button>
@@ -50,7 +70,10 @@ export default function Room() {
               Download
             </button>
           </div>
-          <button className="py-2 bg-red-600 rounded-sm">
+          <button
+            className="py-2 bg-red-600 rounded-sm"
+            onClick={leaveRoom}
+          >
             Leave
           </button>
 
@@ -59,6 +82,7 @@ export default function Room() {
           onChangeHandler={sendChange}
           remoteChange={remoteChange}
           initialValue={initValue}
+          language={language}
         />
       </div>
     </section>

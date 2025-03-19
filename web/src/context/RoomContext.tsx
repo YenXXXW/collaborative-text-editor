@@ -1,3 +1,4 @@
+import { User } from '@/model/User';
 import { createContext, useContext, ReactNode, useState } from 'react';
 import { v4 as uuid } from 'uuid';
 
@@ -19,8 +20,9 @@ interface RoomContextType {
   joinRoom: (roomId: number, username: string) => void;
   sendChange: (change: Change) => void;
   sendJoined: () => void;
+  leaveRoom: () => void;
   userId: string;
-  usersInRoom: string[]
+  usersInRoom: User[]
 }
 
 const RoomContext = createContext<RoomContextType | undefined>(undefined);
@@ -31,7 +33,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   const [remoteChange, setRemoteChange] = useState<Change | null>(null);
   const [initValue, setInitValue] = useState("")
   const [userId] = useState(uuid())
-  const [usersInRoom, setUsersInRoom] = useState<string[]>([])
+  const [usersInRoom, setUsersInRoom] = useState<User[]>([])
 
   const joinRoom = (roomId: number, username: string) => {
     console.log(userId)
@@ -96,8 +98,23 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const leaveRoom = () => {
+    if (socket?.readyState === WebSocket.OPEN) {
+      socket.send(
+        (
+          JSON.stringify({
+            event: "user_leave",
+            change: null,
+            userId: userId
+          })
+        )
+      )
+    }
+
+  }
+
   return (
-    <RoomContext.Provider value={{ sendJoined, socket, initValue, hasJoined, remoteChange, joinRoom, sendChange, userId, usersInRoom }}>
+    <RoomContext.Provider value={{ leaveRoom, sendJoined, socket, initValue, hasJoined, remoteChange, joinRoom, sendChange, userId, usersInRoom }}>
       {children}
     </RoomContext.Provider>
   );

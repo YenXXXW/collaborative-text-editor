@@ -299,6 +299,23 @@ func handleClientReads(client *Client) {
 				}
 				msg.UsersInRoom = usersInRoom
 			}
+			if msg.Event != nil && *msg.Event == "user_leave" {
+
+				var usersInRoom []User
+				for client := range room.Clients {
+					if client.UserId == msg.UserId {
+						delete(room.Clients, client)
+					} else {
+						usersInRoom = append(usersInRoom, User{
+							UserId:   client.UserId,
+							UserName: client.UserName,
+						})
+					}
+
+				}
+				msg.UsersInRoom = usersInRoom
+
+			}
 		}
 		jsonMsg, err := json.Marshal(msg)
 		if err != nil {

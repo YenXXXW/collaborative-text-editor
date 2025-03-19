@@ -1,7 +1,14 @@
 import Editor from '@monaco-editor/react';
 import { useRef, useEffect } from 'react'
 import { editor } from 'monaco-editor'
-
+import "monaco-editor/esm/vs/basic-languages/python/python";
+import "monaco-editor/esm/vs/basic-languages/java/java";
+import "monaco-editor/esm/vs/basic-languages/cpp/cpp";
+import "monaco-editor/esm/vs/basic-languages/go/go";
+import "monaco-editor/esm/vs/basic-languages/html/html";
+import "monaco-editor/esm/vs/basic-languages/rust/rust";
+import "monaco-editor/esm/vs/basic-languages/css/css";
+import "monaco-editor/esm/vs/basic-languages/php/php";
 
 interface Change {
   startLineNumber: number;
@@ -16,12 +23,14 @@ interface EditorReactProps {
   onChangeHandler: (change: Change) => void;
   remoteChange: Change | null;
   initialValue: string;
+  language: string
 }
 
 export default function EditorReact({
   onChangeHandler,
   remoteChange,
-  initialValue
+  initialValue,
+  language
 }: EditorReactProps) {
 
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
@@ -75,11 +84,29 @@ export default function EditorReact({
     }
   }
 
+
+  const handleLanguageChange = (newLanguage: string) => {
+
+    const iTextModel = editorRef.current?.getModel()
+    if (iTextModel) {
+
+      editor.setModelLanguage(iTextModel, newLanguage)
+    }
+
+
+  }
+
+  useEffect(() => {
+    handleLanguageChange(language)
+
+  }, [language])
+
+
   return (
     <Editor
       height="100vh"
       theme='vs-dark'
-      defaultLanguage="javascript"
+      language={language}
       defaultValue={initialValue}
       onMount={handleEditorDidMount}
       onChange={handleEditorChange}

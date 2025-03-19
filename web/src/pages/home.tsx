@@ -21,7 +21,7 @@ export default function Home() {
   // Watch for hasJoined to change and navigate after connection is established
   useEffect(() => {
     if (hasJoined) {
-      navigate(`/room/${roomId}`)
+      navigate(`/room/${roomId}`, { state: { username } })
     }
   }, [hasJoined, navigate])
 
