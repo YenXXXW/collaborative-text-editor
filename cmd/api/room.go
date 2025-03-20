@@ -302,15 +302,13 @@ func handleClientReads(client *Client) {
 			if msg.Event != nil && *msg.Event == "user_leave" {
 
 				var usersInRoom []User
+
+				delete(room.Clients, client)
 				for client := range room.Clients {
-					if client.UserId == msg.UserId {
-						delete(room.Clients, client)
-					} else {
-						usersInRoom = append(usersInRoom, User{
-							UserId:   client.UserId,
-							UserName: client.UserName,
-						})
-					}
+					usersInRoom = append(usersInRoom, User{
+						UserId:   client.UserId,
+						UserName: client.UserName,
+					})
 
 				}
 				msg.UsersInRoom = usersInRoom
@@ -323,7 +321,6 @@ func handleClientReads(client *Client) {
 			continue
 		}
 		roomManager.Mutex.Unlock()
-		log.Printf("Formatted message: %s", string(jsonMsg))
 		roomManager.BroadcastToRoom(client.RoomId, jsonMsg)
 	}
 }

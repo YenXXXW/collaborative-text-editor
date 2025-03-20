@@ -35,6 +35,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   const [userId] = useState(uuid())
   const [usersInRoom, setUsersInRoom] = useState<User[]>([])
 
+
   const joinRoom = (roomId: number, username: string) => {
     console.log(userId)
     const newSocket = new WebSocket(`ws://localhost:8080/v1/ws?roomId=${roomId}&userId=${userId}&username=${username}`);
@@ -99,6 +100,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   }
 
   const leaveRoom = () => {
+    console.log("leave room clicked")
     if (socket?.readyState === WebSocket.OPEN) {
       socket.send(
         (
@@ -109,6 +111,8 @@ export function RoomProvider({ children }: { children: ReactNode }) {
           })
         )
       )
+      socket.close()
+      setHasJoined(false)
     }
 
   }

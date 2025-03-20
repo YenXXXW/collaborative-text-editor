@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react"
 import Editor from "@/components/EditorReact"
 import { useRoom } from "@/context/RoomContext"
-import { useLocation, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { User } from "@/model/User"
 
 export default function Room() {
   const location = useLocation();
   const userName = location.state?.username;
 
+  const navigate = useNavigate()
 
   const { roomId } = useParams()
   const { leaveRoom, userId, remoteChange, sendChange, initValue, usersInRoom } = useRoom()
@@ -19,6 +20,11 @@ export default function Room() {
     }
   ]);
 
+  const handleLeavRoom = () => {
+    leaveRoom()
+    navigate("/")
+
+  }
 
   useEffect(() => {
     if (usersInRoom.length > 0) {
@@ -72,7 +78,7 @@ export default function Room() {
           </div>
           <button
             className="py-2 bg-red-600 rounded-sm"
-            onClick={leaveRoom}
+            onClick={handleLeavRoom}
           >
             Leave
           </button>
