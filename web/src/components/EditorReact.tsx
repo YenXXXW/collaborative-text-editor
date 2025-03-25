@@ -23,14 +23,21 @@ interface EditorReactProps {
   onChangeHandler: (change: Change) => void;
   remoteChange: Change | null;
   initialValue: string;
-  language: string
+  language: string;
+  getContent: boolean;
+  WantContent: React.Dispatch<React.SetStateAction<boolean>>
+  setContent: React.Dispatch<React.SetStateAction<string>>
 }
 
 export default function EditorReact({
   onChangeHandler,
   remoteChange,
   initialValue,
-  language
+  setContent,
+  getContent,
+  WantContent,
+  language,
+
 }: EditorReactProps) {
 
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
@@ -39,6 +46,18 @@ export default function EditorReact({
   const handleEditorDidMount = (editor: editor.IStandaloneCodeEditor) => {
     editorRef.current = editor;
   }
+
+  useEffect(() => {
+    if (getContent) {
+      if (editorRef.current) {
+        const content = editorRef.current.getValue()
+        setContent(content)
+      }
+      WantContent(false)
+
+    }
+
+  }, [getContent])
 
   useEffect(() => {
     if (remoteChange && editorRef.current) {
