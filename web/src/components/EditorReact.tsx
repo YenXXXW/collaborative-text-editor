@@ -1,5 +1,5 @@
 import Editor from '@monaco-editor/react';
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { editor } from 'monaco-editor'
 import "monaco-editor/esm/vs/basic-languages/python/python";
 import "monaco-editor/esm/vs/basic-languages/java/java";
@@ -24,116 +24,93 @@ interface EditorReactProps {
   remoteChange: Change | null;
   initialValue: string;
   language: string;
-  getContent: boolean;
-  WantContent: React.Dispatch<React.SetStateAction<boolean>>
-  setContent: React.Dispatch<React.SetStateAction<string>>
 }
 
-export default function EditorReact({
-  onChangeHandler,
-  remoteChange,
-  initialValue,
-  setContent,
-  getContent,
-  WantContent,
-  language,
+export interface EditorReactRef {
+  getEditorInstance: () => editor.IStandaloneCodeEditor | null;
+}
 
-}: EditorReactProps) {
+const EditorReact = forwardRef<EditorReactRef, EditorReactProps>(
+  ({ onChangeHandler, remoteChange, initialValue, language }, ref) => {
+    const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+    const isApplyingRef = useRef(false);
 
-  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
-  const isApplyingRef = useRef(false);
+    useImperativeHandle(ref, () => ({
+      getEditorInstance: () => editorRef.current,
+    }));
 
-  const handleEditorDidMount = (editor: editor.IStandaloneCodeEditor) => {
-    editorRef.current = editor;
-  }
+    const handleEditorDidMount = (editorInstance: editor.IStandaloneCodeEditor) => {
+      editorRef.current = editorInstance;
+    };
 
-  useEffect(() => {
-    if (getContent) {
-      if (editorRef.current) {
-        const content = editorRef.current.getValue()
-        setContent(content)
-      }
-      WantContent(false)
+    useEffect(() => {
+      if (remoteChange && editorRef.current) {
+        const model = editorRef.current.getModel();
+        if (!model) return;
 
-    }
-
-  }, [getContent])
-
-  useEffect(() => {
-    if (remoteChange && editorRef.current) {
-      const model = editorRef.current.getModel();
-      if (!model) return;
-
-      isApplyingRef.current = true;
-      model.pushEditOperations(
-        [],
-        [
-          {
-            range: {
-              startLineNumber: remoteChange.startLineNumber,
-              startColumn: remoteChange.startColumn,
-              endLineNumber: remoteChange.endLineNumber,
-              endColumn: remoteChange.endColumn,
+        isApplyingRef.current = true;
+        model.pushEditOperations(
+          [],
+          [
+            {
+              range: {
+                startLineNumber: remoteChange.startLineNumber,
+                startColumn: remoteChange.startColumn,
+                endLineNumber: remoteChange.endLineNumber,
+                endColumn: remoteChange.endColumn,
+              },
+              text: remoteChange.text,
             },
-            text: remoteChange.text,
-          },
-        ],
-        () => null
-      )
-      isApplyingRef.current = false;
-    }
-  }, [remoteChange]);
+          ],
+          () => null
+        );
+        isApplyingRef.current = false;
+      }
+    }, [remoteChange]);
 
-  function handleEditorChange(_: string | undefined,
-    event: editor.IModelContentChangedEvent) {
-    if (isApplyingRef.current) return;
+    function handleEditorChange(_: string | undefined, event: editor.IModelContentChangedEvent) {
+      if (isApplyingRef.current) return;
 
-    const changes = event.changes;
-    if (changes.length > 0) {
-      // Send only the change information
-      const change = changes[0];
-      onChangeHandler({
-        startLineNumber: change.range.startLineNumber,
-        startColumn: change.range.startColumn,
-        endLineNumber: change.range.endLineNumber,
-        endColumn: change.range.endColumn,
-        text: change.text,
-        rangeLength: change.rangeLength,
-      });
-    }
-  }
-
-
-  const handleLanguageChange = (newLanguage: string) => {
-
-    const iTextModel = editorRef.current?.getModel()
-    if (iTextModel) {
-
-      editor.setModelLanguage(iTextModel, newLanguage)
+      const changes = event.changes;
+      if (changes.length > 0) {
+        const change = changes[0];
+        onChangeHandler({
+          startLineNumber: change.range.startLineNumber,
+          startColumn: change.range.startColumn,
+          endLineNumber: change.range.endLineNumber,
+          endColumn: change.range.endColumn,
+          text: change.text,
+          rangeLength: change.rangeLength,
+        });
+      }
     }
 
+    const handleLanguageChange = (newLanguage: string) => {
+      const iTextModel = editorRef.current?.getModel();
+      if (iTextModel) {
+        editor.setModelLanguage(iTextModel, newLanguage);
+      }
+    };
 
-  }
+    useEffect(() => {
+      handleLanguageChange(language);
+    }, [language]);
 
-  useEffect(() => {
-    handleLanguageChange(language)
+    return (
+      <Editor
+        height="96vh"
+        theme="vs-dark"
+        language={language}
+        defaultValue={initialValue}
+        onMount={handleEditorDidMount}
+        onChange={handleEditorChange}
+        options={{
+          minimap: { enabled: false },
+          automaticLayout: true,
+        }}
+      />
+    );
+  });
 
-  }, [language])
+export default EditorReact;
 
-
-  return (
-    <Editor
-      height="96vh"
-      theme='vs-dark'
-      language={language}
-      defaultValue={initialValue}
-      onMount={handleEditorDidMount}
-      onChange={handleEditorChange}
-      options={{
-        minimap: { enabled: false },
-        automaticLayout: true,
-      }}
-    />
-  );
-
-}

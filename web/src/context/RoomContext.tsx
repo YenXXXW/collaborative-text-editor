@@ -23,6 +23,7 @@ interface RoomContextType {
   leaveRoom: () => void;
   userId: string;
   usersInRoom: User[]
+  createNewInstance: () => void
 }
 
 const RoomContext = createContext<RoomContextType | undefined>(undefined);
@@ -58,6 +59,11 @@ export function RoomProvider({ children }: { children: ReactNode }) {
         setUsersInRoom(data.usersInRoom)
         if (data.userId !== userId) {
           alert(`${userId} has joined`)
+        }
+      }
+      if (data.event === "new_program") {
+        if (data.userId !== userId) {
+          setInitValue("//some comment")
         }
       }
 
@@ -117,8 +123,23 @@ export function RoomProvider({ children }: { children: ReactNode }) {
 
   }
 
+  const createNewInstance = () => {
+    if (socket?.readyState === WebSocket.OPEN) {
+      socket.send(
+        JSON.stringify({
+          event: "new_program",
+          change: null,
+          userId: userId
+        })
+      )
+    }
+
+    setInitValue("//some comment")
+    console.log("new instance create")
+  }
+
   return (
-    <RoomContext.Provider value={{ leaveRoom, sendJoined, socket, initValue, hasJoined, remoteChange, joinRoom, sendChange, userId, usersInRoom }}>
+    <RoomContext.Provider value={{ leaveRoom, sendJoined, socket, initValue, hasJoined, remoteChange, joinRoom, sendChange, userId, usersInRoom, createNewInstance }}>
       {children}
     </RoomContext.Provider>
   );

@@ -1,9 +1,8 @@
 import { useRef, useEffect, useState } from "react"
-import Editor from "@/components/EditorReact"
+import Editor, { EditorReactRef } from "@/components/EditorReact"
 import { useRoom } from "@/context/RoomContext"
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { User } from "@/model/User"
-import { editor } from 'monaco-editor'
 
 import { IoIosArrowUp, IoIosArrowDown } from "react-icons/io";
 import { IoCopyOutline, IoCopySharp } from "react-icons/io5"
@@ -16,12 +15,10 @@ export default function Room() {
   const navigate = useNavigate()
 
   const { roomId } = useParams()
-  const { leaveRoom, userId, remoteChange, sendChange, initValue, usersInRoom } = useRoom()
+  const { leaveRoom, userId, remoteChange, sendChange, initValue, usersInRoom, createNewInstance } = useRoom()
   const [language, setLanguage] = useState('javascript');
   const [copied, setCopied] = useState(false)
   const [roomIdShown, setRoomIdShown] = useState(false)
-  const [content, setContent] = useState("")
-  const [getContent, WantContent] = useState(false)
   const [totalUsersInRoom, setTotalUsersInRoom] = useState<User[]>([
     {
       userId,
@@ -30,7 +27,19 @@ export default function Room() {
   ]);
 
 
-  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+
+  const languages: Record<string, string> = {
+    "javascript": "js",
+    "java": "java",
+    "php": "php",
+    "go": "go",
+    "cpp": "cpp",
+    "rust": "rs",
+    "python": "py"
+
+  }
+
+  const editorRef = useRef<EditorReactRef | null>(null);
 
   const colors = [
     "#4a3bc3",
@@ -43,6 +52,35 @@ export default function Room() {
     navigate("/")
 
   }
+
+  const handleDownload = () => {
+    const editorInstance = editorRef.current?.getEditorInstance();
+
+
+    if (!editorInstance) {
+      console.error("Editor instance not found.");
+      return;
+    }
+
+    const content = editorInstance.getValue();
+    const blob = new Blob([content], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    console.log(language)
+    a.download = `code.${languages[language]}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    URL.revokeObjectURL(url);
+  };
+
+  const handleCreateNewInstance = () => {
+
+  }
+
 
   useEffect(() => {
     if (usersInRoom.length > 0) {
@@ -69,11 +107,6 @@ export default function Room() {
 
   }
 
-  const handleDownload = () => {
-    WantContent(true)
-    console.log(content)
-
-  }
 
 
   return (
@@ -122,15 +155,11 @@ export default function Room() {
             onChange={(e) => setLanguage(e.target.value)}
             className="focus:outline-none bg-neutral-800 "
           >
-            <option value={"javascript"}>JavaScript</option>
-            <option value={"python"}>Python</option>
-            <option value={"cpp"}>C++</option>
-            <option value={"java"}>Java</option>
-            <option value={"go"}>Go</option>
-            <option value={"rust"}>Rust</option>
-            <option value={"php"}>PhP</option>
+            {Object.keys(languages).map(lang => (
+              <option value={lang}>{lang}</option>
+            ))}
           </select>
-          <button>
+          <button onClick={createNewInstance}>
             New
           </button>
           <button onClick={handleDownload}>
@@ -148,12 +177,10 @@ export default function Room() {
       </div>
       <div className="flex">
         <Editor
+          ref={editorRef}
           onChangeHandler={sendChange}
           remoteChange={remoteChange}
           initialValue={initValue}
-          setContent={setContent}
-          getContent={getContent}
-          WantContent={WantContent}
           language={language}
         />
 

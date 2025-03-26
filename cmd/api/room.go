@@ -314,6 +314,12 @@ func handleClientReads(client *Client) {
 				msg.UsersInRoom = usersInRoom
 
 			}
+
+			if msg.Event != nil && *msg.Event == "new_program" {
+
+				room.Program = "//some_comment"
+
+			}
 		}
 		jsonMsg, err := json.Marshal(msg)
 		if err != nil {
