@@ -29,8 +29,9 @@ type Client struct {
 }
 
 type Room struct {
-	Program string
-	Clients map[*Client]bool
+	Program  string
+	Language string
+	Clients  map[*Client]bool
 }
 
 type RoomManager struct {
@@ -66,14 +67,16 @@ type Message struct {
 	Type        ChangeType `json:"type"`
 	UserId      string     `json:"userId"`
 	Program     *string    `json:"program,omitempty"`
+	Language    *string    `json:"language,omitempty"`
 	Event       *string    `json:"event,omitempty"`
 	UsersInRoom []User     `json:"usersInRoom,omitempty"`
 }
 
 func CreateRoom(client *Client) *Room {
 	return &Room{
-		Program: "// some comments",
-		Clients: make(map[*Client]bool),
+		Program:  "// some comments",
+		Clients:  make(map[*Client]bool),
+		Language: "js",
 	}
 }
 
@@ -201,11 +204,12 @@ func (app *application) joinRoomHandler(w http.ResponseWriter, r *http.Request) 
 	room := roomManager.Rooms[roomId]
 
 	var initMessage = Message{
-		RoomId:  roomId,
-		Change:  nil,
-		Type:    InitChange,
-		UserId:  userId,
-		Program: &room.Program,
+		RoomId:   roomId,
+		Change:   nil,
+		Type:     InitChange,
+		UserId:   userId,
+		Program:  &room.Program,
+		Language: &room.Language,
 	}
 	message, err := json.Marshal(initMessage)
 	if err != nil {
@@ -316,8 +320,11 @@ func handleClientReads(client *Client) {
 			}
 
 			if msg.Event != nil && *msg.Event == "new_program" {
-
 				room.Program = "//some_comment"
+			}
+
+			if msg.Event != nil && *msg.Event == "lang_change" {
+				room.Language = *msg.Language
 
 			}
 		}

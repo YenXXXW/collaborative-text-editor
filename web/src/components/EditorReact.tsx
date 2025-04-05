@@ -98,7 +98,7 @@ const EditorReact = forwardRef<EditorReactRef, EditorReactProps>(
 
     return (
       <Editor
-        height="96vh"
+        height="94vh"
         theme="vs-dark"
         language={language}
         defaultValue={initialValue}

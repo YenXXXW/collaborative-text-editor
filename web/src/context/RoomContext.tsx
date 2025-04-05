@@ -23,7 +23,13 @@ interface RoomContextType {
   leaveRoom: () => void;
   userId: string;
   usersInRoom: User[]
-  createNewInstance: () => void
+  alertMessage: string,
+  setAlertMessage: React.Dispatch<React.SetStateAction<string>>,
+  createNewInstance: () => void,
+  programmingLanguageChange: (lang: string) => void,
+  language: string,
+  setLanguage: React.Dispatch<React.SetStateAction<string>>,
+
 }
 
 const RoomContext = createContext<RoomContextType | undefined>(undefined);
@@ -35,6 +41,8 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   const [initValue, setInitValue] = useState("")
   const [userId] = useState(uuid())
   const [usersInRoom, setUsersInRoom] = useState<User[]>([])
+  const [alertMessage, setAlertMessage] = useState("")
+  const [language, setLanguage] = useState('javascript');
 
 
   const joinRoom = (roomId: number, username: string) => {
@@ -53,17 +61,31 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       }
       if (data.type === "init") {
         setInitValue(data.program)
+        setLanguage(data.language)
       }
       if (data.event === "new_user_joined") {
 
         setUsersInRoom(data.usersInRoom)
         if (data.userId !== userId) {
-          alert(`${userId} has joined`)
+          setAlertMessage(`${userId} joined room `)
         }
       }
       if (data.event === "new_program") {
         if (data.userId !== userId) {
           setInitValue("//some comment")
+        }
+      }
+      if (data.event === "user_leave") {
+        if (data.userId !== userId) {
+          setAlertMessage(`${userId} left room `)
+        }
+        setUsersInRoom([...data.usersInRoom])
+      }
+
+      if (data.event === "lang_change") {
+        if (data.userId !== userId) {
+          console.log("languate change", data.language)
+          setLanguage(data.language)
         }
       }
 
@@ -123,6 +145,8 @@ export function RoomProvider({ children }: { children: ReactNode }) {
 
   }
 
+  //below code for new instance creation is not used  
+  // when the user clicks "New" button, sendChange performs setting the new code for other editor instances in the room
   const createNewInstance = () => {
     if (socket?.readyState === WebSocket.OPEN) {
       socket.send(
@@ -135,11 +159,24 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     }
 
     setInitValue("//some comment")
-    console.log("new instance create")
+  }
+
+  const programmingLanguageChange = (lang: string) => {
+    if (socket?.readyState === WebSocket.OPEN) {
+      socket.send(
+        JSON.stringify({
+          event: "lang_change",
+          language: lang,
+          change: null,
+          userId: userId
+        })
+      )
+    }
+
   }
 
   return (
-    <RoomContext.Provider value={{ leaveRoom, sendJoined, socket, initValue, hasJoined, remoteChange, joinRoom, sendChange, userId, usersInRoom, createNewInstance }}>
+    <RoomContext.Provider value={{ programmingLanguageChange, alertMessage, setAlertMessage, leaveRoom, sendJoined, socket, initValue, hasJoined, remoteChange, joinRoom, sendChange, userId, usersInRoom, createNewInstance, language, setLanguage }}>
       {children}
     </RoomContext.Provider>
   );
