@@ -8,7 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
-	"github.com/yenxxxw/collaborative-text-editor/internal/store"
+	//"github.com/yenxxxw/collaborative-text-editor/internal/store"
 	"go.uber.org/zap"
 )
 
@@ -21,13 +21,13 @@ const (
 
 type application struct {
 	config config
-	store  store.Storage
+	//store  store.Storage
 	logger *zap.SugaredLogger
 }
 
 type config struct {
 	addr string
-	db   dbConfig
+	//db   dbConfig
 }
 
 type dbConfig struct {
