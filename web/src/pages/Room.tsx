@@ -3,7 +3,6 @@ import Editor, { EditorReactRef } from "@/components/EditorReact"
 import { useRoom } from "@/context/RoomContext"
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { User } from "@/model/User"
-import { IoIosArrowUp, IoIosArrowDown } from "react-icons/io";
 import { IoCopyOutline, IoCopySharp } from "react-icons/io5"
 import LOGO from "@/assets/logo.png"
 
@@ -16,7 +15,6 @@ export default function Room() {
   const { roomId } = useParams()
   const { programmingLanguageChange, alertMessage, setAlertMessage, leaveRoom, userId, remoteChange, sendChange, initValue, usersInRoom, language, setLanguage } = useRoom()
   const [copied, setCopied] = useState(false)
-  const [roomIdShown, setRoomIdShown] = useState(false)
   const [totalUsersInRoom, setTotalUsersInRoom] = useState<User[]>([
     {
       userId,

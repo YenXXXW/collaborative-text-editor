@@ -1,0 +1,29 @@
+# Use Node.js for building the Vite app
+FROM node:20 AS builder
+
+WORKDIR /app
+
+# Copy package files first for caching
+COPY web/package.json web/package-lock.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy the entire frontend source code
+COPY web ./
+
+# Build the frontend with Vite
+RUN npm run build
+
+# Use Nginx to serve the built frontend
+FROM nginx:alpine
+
+# Copy built frontend to Nginx's public folder
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Expose port 80
+EXPOSE 80
+
+# Run Nginx
+CMD ["nginx", "-g", "daemon off;"]
+
