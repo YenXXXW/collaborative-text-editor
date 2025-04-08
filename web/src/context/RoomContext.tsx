@@ -47,7 +47,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
 
   const joinRoom = (roomId: number, username: string) => {
     console.log(userId)
-    const newSocket = new WebSocket(`ws://localhost:8080/v1/ws?roomId=${roomId}&userId=${userId}&username=${username}`);
+    const newSocket = new WebSocket(`wss://collaborative-text-editor-tulc.onrender.com/v1/ws?roomId=${roomId}&userId=${userId}&username=${username}`);
 
     newSocket.onopen = () => {
       setHasJoined(true);
