@@ -7,6 +7,10 @@ services:
       dockerfile: Dockerfile.api
     ports:
       - "8080:8080"
+    volumes:
+      - ./api:/app  # Mount the local api directory to the /app directory in the container
+    environment:
+      - NODE_ENV=development  
 
   web:
     build:
@@ -15,4 +19,8 @@ services:
     ports:
       - "5173:80"
     depends_on:
-      - api  # Ensure backend starts first
+      - api  
+    volumes:
+      - ./web:/app  
+    environment:
+      - NODE_ENV=development 
