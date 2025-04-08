@@ -1,7 +1,7 @@
 import axios, { AxiosInstance } from "axios";
 
 const axiosInstance: AxiosInstance = axios.create({
-  baseURL: 'https://collaborative-text-editor-tulc.onrender.com/v1',
+  baseURL: import.meta.env.VITE_BASE_API_URL,
   headers: {
     "Content-Type": "application/json"
   }
