@@ -80,5 +80,5 @@ func (app *application) run(mux http.Handler) error {
 }
 
 func AllowOriginFunc(r *http.Request, origin string) bool {
-	return origin == os.Getenv("ALLOWED_ORIGIN")
+	return origin == os.Getenv("ALLOWED_LOCAL_ORIGIN") || origin == os.Getenv("ALLOWED_DEPLOYED_ORIGIN")
 }
