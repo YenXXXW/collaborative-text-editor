@@ -76,7 +76,7 @@ func CreateRoom(client *Client) *Room {
 	return &Room{
 		Program:  "// some comments",
 		Clients:  make(map[*Client]bool),
-		Language: "js",
+		Language: "javascript",
 	}
 }
 
