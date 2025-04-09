@@ -18,7 +18,7 @@ export default function Room() {
   const [totalUsersInRoom, setTotalUsersInRoom] = useState<User[]>([
     {
       userId,
-      userName: userName ?? "wai"
+      userName: userName
     }
   ]);
 

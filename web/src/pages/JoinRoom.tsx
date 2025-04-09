@@ -2,12 +2,17 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useRoom } from "@/context/RoomContext"
-import { useNavigate } from "react-router-dom"
+import { useLocation, useNavigate } from "react-router-dom"
 
 export default function JoinRoomPage() {
+
+  const location = useLocation();
+  const userName = location.state?.username;
+
+
   const { sendJoined, joinRoom, hasJoined, initValue } = useRoom()
   const [roomId, setRoomId] = useState<number | null>(null)
-  const [username, setUsername] = useState("")
+  const [username, setUsername] = useState(userName || "")
 
   const navigate = useNavigate()
 
