@@ -3,11 +3,13 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+
 	//"github.com/yenxxxw/collaborative-text-editor/internal/store"
 	"go.uber.org/zap"
 )
@@ -78,5 +80,5 @@ func (app *application) run(mux http.Handler) error {
 }
 
 func AllowOriginFunc(r *http.Request, origin string) bool {
-	return origin == "http://localhost:5173"
+	return origin == os.Getenv("ALLOWED_ORIGIN")
 }

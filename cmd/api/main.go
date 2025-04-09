@@ -3,6 +3,8 @@ package main
 import (
 	//"github.com/yenxxxw/collaborative-text-editor/internal/store"
 	"log"
+
+	"github.com/joho/godotenv"
 	//"github.com/yenxxxw/collaborative-text-editor/internal/db"
 	// "go.uber.org/zap"
 )
@@ -38,6 +40,10 @@ func main() {
 	app := &application{
 		config: cfg,
 		//store:  store,
+	}
+
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, using system environment variables")
 	}
 
 	mux := app.mount()
