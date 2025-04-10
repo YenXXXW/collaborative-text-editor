@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useRoom } from "@/context/RoomContext"
 import { useLocation, useNavigate } from "react-router-dom"
+import LOGO from "@/assets/logo.png"
 
 export default function JoinRoomPage() {
 
@@ -33,8 +34,14 @@ export default function JoinRoomPage() {
   return (
     <>
       <div className="flex flex-col gap-4 items-center justify-center min-h-screen">
-        <div className="flex gap-2">
+        <div className="w-[300px] flex flex-col gap-4">
 
+          <div className="flex justify-center my-6">
+            <img src={LOGO} width={70} height={70} />
+            <h3 className="text-3xl font-mono text-red-600 font-bold">
+              Code Collab
+            </h3>
+          </div>
           <Input
             type="text"
             value={username}
@@ -48,7 +55,14 @@ export default function JoinRoomPage() {
           />
           <Button
             className={`${username === "" && "opacity-90 pointer-events-none"}`}
-            onClick={() => roomId && joinRoom(roomId, username)}
+            onClick={() => {
+              if (roomId) {
+
+
+                joinRoom(roomId, username)
+              }
+            }
+            }
           >Join Room</Button>
         </div>
       </div>

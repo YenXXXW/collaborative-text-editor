@@ -211,6 +211,7 @@ func (app *application) joinRoomHandler(w http.ResponseWriter, r *http.Request) 
 		Program:  &room.Program,
 		Language: &room.Language,
 	}
+
 	message, err := json.Marshal(initMessage)
 	if err != nil {
 		log.Println("Error marshaling initial program:", err)

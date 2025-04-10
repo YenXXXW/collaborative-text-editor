@@ -9,6 +9,7 @@ import LOGO from "@/assets/logo.png"
 export default function Room() {
   const location = useLocation();
   const userName = location.state?.username;
+  console.log("userName is", userName)
 
   const navigate = useNavigate()
 
@@ -18,7 +19,7 @@ export default function Room() {
   const [totalUsersInRoom, setTotalUsersInRoom] = useState<User[]>([
     {
       userId,
-      userName: userName
+      userName: userName ?? "wai"
     }
   ]);
 
@@ -99,6 +100,7 @@ export default function Room() {
 
   useEffect(() => {
     if (usersInRoom.length > 0) {
+      console.log("users in room", usersInRoom)
       setTotalUsersInRoom(usersInRoom)
 
     }
