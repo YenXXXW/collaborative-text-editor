@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -142,7 +143,7 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 
 		origin := r.Header.Get("Origin")
-		return origin == "http://localhost:5173"
+		return origin == os.Getenv("ALLOWED_LOCAL_ORIGIN") || origin == os.Getenv("ALLOWED_DEPLOYED_ORIGIN")
 	},
 }
 
