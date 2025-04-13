@@ -4,11 +4,13 @@ import { Input } from "@/components/ui/input"
 import { useRoom } from "@/context/RoomContext"
 import { useLocation, useNavigate } from "react-router-dom"
 import LOGO from "@/assets/logo.png"
+import LoadingSpinner from "@/components/LoadingSpinner"
 
 export default function JoinRoomPage() {
 
   const location = useLocation();
   const userName = location.state?.username;
+  const [loading, setLoading] = useState(false)
 
 
   const { sendJoined, joinRoom, hasJoined, initValue } = useRoom()
@@ -23,6 +25,7 @@ export default function JoinRoomPage() {
         return
       }
       sendJoined()
+      setLoading(false)
       navigate(`/room/${roomId}`)
     }
   }, [hasJoined, initValue, roomId, navigate])
@@ -34,7 +37,7 @@ export default function JoinRoomPage() {
   return (
     <>
       <div className="flex flex-col gap-4 items-center justify-center min-h-screen">
-        <div className="w-[300px] flex flex-col gap-4">
+        <div className="w-[300px] relative flex flex-col items-center gap-4">
 
           <div className="flex justify-center my-6">
             <img src={LOGO} width={70} height={70} />
@@ -54,16 +57,22 @@ export default function JoinRoomPage() {
             onChange={(e) => setRoomId(Number(e.target.value))}
           />
           <Button
-            className={`${username === "" && "opacity-90 pointer-events-none"}`}
+            className={`w-full ${username === "" && "opacity-90 pointer-events-none"}`}
             onClick={() => {
               if (roomId) {
-
-
+                setLoading(true)
+                localStorage.setItem("userName", userName);
                 joinRoom(roomId, username)
               }
-            }
-            }
+            }}
           >Join Room</Button>
+
+          {
+            loading &&
+            <div className='absolute bottom-[-20%]'>
+              <LoadingSpinner />
+            </div>
+          }
         </div>
       </div>
     </>

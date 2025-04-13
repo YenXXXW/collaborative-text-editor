@@ -9,12 +9,11 @@ import LOGO from "@/assets/logo.png"
 export default function Room() {
   const location = useLocation();
   const userName = location.state?.username;
-  console.log("userName is", userName)
 
   const navigate = useNavigate()
 
   const { roomId } = useParams()
-  const { programmingLanguageChange, alertMessage, setAlertMessage, leaveRoom, userId, remoteChange, sendChange, initValue, usersInRoom, language, setLanguage } = useRoom()
+  const { hasJoined, programmingLanguageChange, joinRoom, alertMessage, setAlertMessage, leaveRoom, userId, remoteChange, sendChange, initValue, usersInRoom, language, setLanguage } = useRoom()
   const [copied, setCopied] = useState(false)
   const [totalUsersInRoom, setTotalUsersInRoom] = useState<User[]>([
     {
@@ -50,6 +49,13 @@ export default function Room() {
 
   }
 
+  useEffect(() => {
+    if (!hasJoined) {
+      const userName = localStorage.getItem("userName")
+      joinRoom(roomId, userName)
+
+    }
+  }, [])
 
   useEffect(() => {
     if (alertMessage !== "") {
@@ -100,7 +106,6 @@ export default function Room() {
 
   useEffect(() => {
     if (usersInRoom.length > 0) {
-      console.log("users in room", usersInRoom)
       setTotalUsersInRoom(usersInRoom)
 
     }

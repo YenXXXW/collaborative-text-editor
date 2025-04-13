@@ -67,7 +67,8 @@ export function RoomProvider({ children }: { children: ReactNode }) {
 
         setUsersInRoom(data.usersInRoom)
         if (data.userId !== userId) {
-          setAlertMessage(`${userId} joined room `)
+          const user = data.usersInRoom.find(((user: any) => user.userId === data.userId))
+          setAlertMessage(`${user.userName} joined room `)
         }
       }
       if (data.event === "new_program") {
