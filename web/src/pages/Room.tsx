@@ -5,6 +5,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { User } from "@/model/User"
 import { IoCopyOutline, IoCopySharp } from "react-icons/io5"
 import LOGO from "@/assets/logo.png"
+import LoadingSpinner from "@/components/LoadingSpinner"
 
 export default function Room() {
   const location = useLocation();
@@ -13,7 +14,7 @@ export default function Room() {
   const navigate = useNavigate()
 
   const { roomId } = useParams()
-  const { hasJoined, programmingLanguageChange, joinRoom, alertMessage, setAlertMessage, leaveRoom, userId, remoteChange, sendChange, initValue, usersInRoom, language, setLanguage } = useRoom()
+  const { sendJoined, hasJoined, programmingLanguageChange, joinRoom, alertMessage, setAlertMessage, leaveRoom, userId, remoteChange, sendChange, initValue, usersInRoom, language, setLanguage } = useRoom()
   const [copied, setCopied] = useState(false)
   const [totalUsersInRoom, setTotalUsersInRoom] = useState<User[]>([
     {
@@ -49,13 +50,25 @@ export default function Room() {
 
   }
 
+  const rejoin = async (roomId: number, userName: string) => {
+
+    await joinRoom(roomId, userName)
+    console.log("ws connecion successful")
+    sendJoined("Rejoin")
+  }
+
   useEffect(() => {
     if (!hasJoined) {
-      const userName = localStorage.getItem("userName")
-      joinRoom(roomId, userName)
+      const userName = localStorage.getItem("cteusername")
 
+      if (roomId && userName) {
+        rejoin(parseInt(roomId), userName)
+      }
+
+    } else {
+      setTotalUsersInRoom(usersInRoom)
     }
-  }, [])
+  }, [hasJoined])
 
   useEffect(() => {
     if (alertMessage !== "") {
@@ -112,6 +125,10 @@ export default function Room() {
   }, [usersInRoom])
 
   useEffect(() => {
+    console.log("has joined", hasJoined)
+  }, [hasJoined])
+
+  useEffect(() => {
     if (copied) {
       setTimeout(() => {
         setCopied(false)
@@ -139,108 +156,116 @@ export default function Room() {
 
   return (
     <section className="w-screen h-screen relative bg-neutral-800 text-white ">
+      {
+        hasJoined ?
+          <>
 
-      <div className="absolute z-30 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-        {
+            <div className="absolute z-30 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+              {
 
-          alertMessage !== "" &&
-          <div className="w-80 border-zinc-600 border rounded-sm p-10">
-            <p className="text-white/80 text-sm">{alertMessage}</p>
-            <button onClick={() => setAlertMessage("")}
-              className="block ml-auto mt-5 bg-white text-black font-semibold py-2 px-3 rounded-md "
-            >
-              Close
-            </button>
-          </div>
+                alertMessage !== "" &&
+                <div className="w-80 border-zinc-600 border rounded-sm p-10">
+                  <p className="text-white/80 text-sm">{alertMessage}</p>
+                  <button onClick={() => setAlertMessage("")}
+                    className="block ml-auto mt-5 bg-white text-black font-semibold py-2 px-3 rounded-md "
+                  >
+                    Close
+                  </button>
+                </div>
 
-        }
-      </div>
-      <div className="h-[6vh] px-3 text-white text-sm  flex border-b border-b-zinc-600 justify-between ">
-        <div className="flex items-center">
-          <img src={LOGO} width={40} height={40} />
-          <h3 className="font-mono text-red-600 font-bold">
-            Code Collab
-          </h3>
-        </div>
-        <div className="flex w-[40vw] justify-between px-5">
-          <div className="flex relative items-center gap-3 ">
-            <div className="flex gap-2 items-center">
-              <p>
-                RoomId
-              </p>
-              <div className="rounded-sm flex gap-3 px-3 py-1 bg-[#0a0a14]">
-                {roomId}
+              }
+            </div>
+            <div className="h-[6vh] px-3 text-white text-sm  flex border-b border-b-zinc-600 justify-between ">
+              <div className="flex items-center">
+                <img src={LOGO} width={40} height={40} />
+                <h3 className="font-mono text-red-600 font-bold">
+                  Code Collab
+                </h3>
+              </div>
+              <div className="flex w-[40vw] justify-between px-5">
+                <div className="flex relative items-center gap-3 ">
+                  <div className="flex gap-2 items-center">
+                    <p>
+                      RoomId
+                    </p>
+                    <div className="rounded-sm flex gap-3 px-3 py-1 bg-[#0a0a14]">
+                      {roomId}
 
-                <button onClick={copyToClipboard} className="mb-1">
-                  {
-                    copied ?
-                      <IoCopySharp size={12} />
-                      :
-                      <IoCopyOutline size={12} />
-                  }
+                      <button onClick={copyToClipboard} className="mb-1">
+                        {
+                          copied ?
+                            <IoCopySharp size={12} />
+                            :
+                            <IoCopyOutline size={12} />
+                        }
 
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <select
+                  onChange={(e) => handleLanguageChange(e.target.value)}
+                  value={language}
+                  className="focus:outline-none bg-neutral-800 "
+                >
+                  {Object.keys(languages).map((lang) => (
+                    <option key={lang} value={lang}>{lang}</option>
+                  ))}
+                </select>
+                <button onClick={handleCreateNewInstance}>
+                  New
+                </button>
+                <button onClick={handleDownload}>
+                  Download
+                </button>
+
+              </div>
+
+            </div>
+            <div className="flex bg-neutral-800">
+              <Editor
+                ref={editorRef}
+                onChangeHandler={sendChange}
+                remoteChange={remoteChange}
+                initialValue={initValue}
+                language={language}
+              />
+
+              <div className="w-[20vw] flex flex-col justify-between pt-5 pb-10 px-4">
+                <div>
+                  Participants
+                  <div className="my-4">
+                    {
+                      totalUsersInRoom.map((user) =>
+                        <div key={user.userId} className="flex gap-3 items-center my-4">
+                          <div className={`w-9 text-center ${user.userId === userId ? "bg-blue-600" : "bg-red-700"} py-2 px-3 rounded-lg`}>
+                            {user.userName[0]}
+                          </div>
+                          {user.userName}
+                        </div>
+                      )
+                    }
+                  </div>
+
+                </div>
+
+                <button
+                  className="py-2 px-3 bg-red-600 rounded-sm mx-3"
+                  onClick={handleLeavRoom}
+                >
+                  Leave
                 </button>
               </div>
             </div>
-          </div>
+          </>
 
-          <select
-            onChange={(e) => handleLanguageChange(e.target.value)}
-            value={language}
-            className="focus:outline-none bg-neutral-800 "
-          >
-            {Object.keys(languages).map((lang) => (
-              <option key={lang} value={lang}>{lang}</option>
-            ))}
-          </select>
-          <button onClick={handleCreateNewInstance}>
-            New
-          </button>
-          <button onClick={handleDownload}>
-            Download
-          </button>
-
-        </div>
-
-      </div>
-      <div className="flex bg-neutral-800">
-        <Editor
-          ref={editorRef}
-          onChangeHandler={sendChange}
-          remoteChange={remoteChange}
-          initialValue={initValue}
-          language={language}
-        />
-
-        <div className="w-[20vw] flex flex-col justify-between pt-5 pb-10 px-4">
-          <div>
-            Participants
-            <div className="my-4">
-              {
-                totalUsersInRoom.map((user) =>
-                  <div key={user.userId} className="flex gap-3 items-center my-4">
-                    <div className={`w-9 text-center ${user.userId === userId ? "bg-blue-600" : "bg-red-700"} py-2 px-3 rounded-lg`}>
-                      {user.userName[0]}
-                    </div>
-                    {user.userName}
-                  </div>
-                )
-              }
-            </div>
-
-          </div>
-
-          <button
-            className="py-2 px-3 bg-red-600 rounded-sm mx-3"
-            onClick={handleLeavRoom}
-          >
-            Leave
-          </button>
-        </div>
-      </div>
-
+          :
+          <LoadingSpinner />
+      }
 
     </section>
+
   )
 
 }

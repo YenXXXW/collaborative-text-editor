@@ -24,7 +24,7 @@ export default function JoinRoomPage() {
       if (initValue === "") {
         return
       }
-      sendJoined()
+      sendJoined("New_User_Join")
       setLoading(false)
       navigate(`/room/${roomId}`)
     }
@@ -58,11 +58,11 @@ export default function JoinRoomPage() {
           />
           <Button
             className={`w-full ${username === "" && "opacity-90 pointer-events-none"}`}
-            onClick={() => {
+            onClick={async () => {
               if (roomId) {
                 setLoading(true)
-                localStorage.setItem("userName", userName);
-                joinRoom(roomId, username)
+                localStorage.setItem("cteusername", username);
+                await joinRoom(roomId, username)
               }
             }}
           >Join Room</Button>

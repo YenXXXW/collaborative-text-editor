@@ -295,7 +295,7 @@ func handleClientReads(client *Client) {
 			if msg.Change != nil {
 				room.Program = applyChange(room.Program, msg.Change)
 			}
-			if msg.Event != nil && *msg.Event == "new_user_joined" {
+			if msg.Event != nil && (*msg.Event == "new_user_joined" || *msg.Event == "user_rejoin") {
 				var usersInRoom []User
 				for client := range room.Clients {
 					usersInRoom = append(usersInRoom, User{

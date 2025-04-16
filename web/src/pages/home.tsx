@@ -11,7 +11,7 @@ export default function Home() {
   const { joinRoom, hasJoined, userId } = useRoom()
   const navigate = useNavigate()
   const [roomId, setRoomId] = useState("")
-  const [username, setUsername] = useState("")
+  const [username, setUsername] = useState(localStorage.getItem("cteusername") || "")
   const [loading, setLoading] = useState(false)
 
   const createRoom = async () => {
@@ -52,6 +52,7 @@ export default function Home() {
           className='w-full'
           onClick={() => {
             console.log("usernmae", username)
+            localStorage.setItem("cteusername", username)
             navigate("/join-room", { state: { username } })
           }}
         >

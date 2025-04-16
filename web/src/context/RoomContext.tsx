@@ -17,9 +17,9 @@ interface RoomContextType {
   hasJoined: boolean;
   remoteChange: Change | null;
   initValue: string,
-  joinRoom: (roomId: number, username: string) => void;
+  joinRoom: (roomId: number, username: string) => Promise<void>;
   sendChange: (change: Change) => void;
-  sendJoined: () => void;
+  sendJoined: (type: string) => void;
   leaveRoom: () => void;
   userId: string;
   usersInRoom: User[]
@@ -45,63 +45,88 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   const [language, setLanguage] = useState('javascript');
 
 
-  const joinRoom = (roomId: number, username: string) => {
-    console.log(userId)
-    const newSocket = new WebSocket(`${import.meta.env.VITE_WS_URL}?roomId=${roomId}&userId=${userId}&username=${username}`);
+  const joinRoom = (roomId: number, username: string): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      const newSocket = new WebSocket(`${import.meta.env.VITE_WS_URL}?roomId=${roomId}&userId=${userId}&username=${username}`);
 
-    newSocket.onopen = () => {
-      setHasJoined(true);
-      console.log("socket connection is set up")
-    };
+      newSocket.onopen = () => {
+        resolve()
+        setHasJoined(true);
+        console.log("socket connection is set up")
+      };
 
-    newSocket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === "change" && data.userId !== userId) {
-        setRemoteChange(data.change);
-      }
-      if (data.type === "init") {
-        setInitValue(data.program)
-        setLanguage(data.language)
-      }
-      if (data.event === "new_user_joined") {
+      newSocket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
 
-        setUsersInRoom(data.usersInRoom)
-        if (data.userId !== userId) {
-          const user = data.usersInRoom.find(((user: any) => user.userId === data.userId))
-          setAlertMessage(`${user.userName} joined room `)
+        switch (data.event || data.type) {
+          case "change":
+            if (data.userId !== userId) {
+              setRemoteChange(data.change);
+            }
+            break;
+
+          case "init":
+            setInitValue(data.program);
+            setLanguage(data.language);
+            break;
+
+          case "user_rejoin":
+            setUsersInRoom(data.usersInRoom);
+            if (data.userId !== userId) {
+              const user = data.usersInRoom.find((user: any) => user.userId === data.userId);
+              setAlertMessage(`${user.userName} rejoined room`);
+            }
+            break;
+
+          case "new_user_joined":
+            setUsersInRoom(data.usersInRoom);
+            if (data.userId !== userId) {
+              const user = data.usersInRoom.find((user: any) => user.userId === data.userId);
+              setAlertMessage(`${user.userName} joined room`);
+            }
+            break;
+
+          case "new_program":
+            if (data.userId !== userId) {
+              setInitValue("//some comment");
+            }
+            break;
+
+          case "user_leave":
+            if (data.userId !== userId) {
+              setAlertMessage(`${userId} left room`);
+            }
+            setUsersInRoom([...data.usersInRoom]);
+            break;
+
+          case "lang_change":
+            if (data.userId !== userId) {
+              console.log("language change", data.language);
+              setLanguage(data.language);
+            }
+            break;
+
+          default:
+            // handle unknown event/type if needed
+            break;
         }
-      }
-      if (data.event === "new_program") {
-        if (data.userId !== userId) {
-          setInitValue("//some comment")
-        }
-      }
-      if (data.event === "user_leave") {
-        if (data.userId !== userId) {
-          setAlertMessage(`${userId} left room `)
-        }
-        setUsersInRoom([...data.usersInRoom])
-      }
 
-      if (data.event === "lang_change") {
-        if (data.userId !== userId) {
-          console.log("languate change", data.language)
-          setLanguage(data.language)
-        }
-      }
 
-    };
+      };
 
-    newSocket.onerror = (error) => {
-      console.error("Error connecting to the socket", error);
-    };
+      newSocket.onerror = (error) => {
+        reject()
+        console.error("Error connecting to the socket", error);
+      };
 
-    newSocket.onclose = () => {
-      console.log("Socket connection closed");
-      setHasJoined(false);
-    };
+      newSocket.onclose = () => {
+        console.log("Socket connection closed");
+        setHasJoined(false);
+      };
 
-    setSocket(newSocket);
+      setSocket(newSocket);
+    })
+
   };
 
   const sendChange = (change: Change) => {
@@ -116,15 +141,27 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const sendJoined = () => {
+  const sendJoined = (type: string) => {
+
     if (socket?.readyState === WebSocket.OPEN) {
-      socket.send(
-        JSON.stringify({
-          event: "new_user_joined",
-          change: null,
-          userId: userId
-        })
-      )
+      if (type === "New_User_Join") {
+
+        socket.send(
+          JSON.stringify({
+            event: "new_user_joined",
+            change: null,
+            userId: userId
+          })
+        )
+      } else {
+        socket.send(
+          JSON.stringify({
+            event: "user_rejoin",
+            change: null,
+            userId: userId
+          })
+        )
+      }
     }
   }
 
