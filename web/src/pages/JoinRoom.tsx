@@ -26,7 +26,7 @@ export default function JoinRoomPage() {
       }
       sendJoined("New_User_Join")
       setLoading(false)
-      navigate(`/room/${roomId}`)
+      navigate(`/room/${roomId}`, { state: { username } })
     }
   }, [hasJoined, initValue, roomId, navigate])
 
