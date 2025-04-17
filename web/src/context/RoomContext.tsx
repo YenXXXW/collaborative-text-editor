@@ -1,5 +1,5 @@
 import { User } from '@/model/User';
-import { createContext, useContext, ReactNode, useState } from 'react';
+import { createContext, useContext, ReactNode, useState, useRef } from 'react';
 import { v4 as uuid } from 'uuid';
 
 interface Change {
@@ -13,7 +13,7 @@ interface Change {
 }
 
 interface RoomContextType {
-  socket: WebSocket | null;
+  wsconnstatus: boolean;
   hasJoined: boolean;
   remoteChange: Change | null;
   initValue: string,
@@ -35,7 +35,6 @@ interface RoomContextType {
 const RoomContext = createContext<RoomContextType | undefined>(undefined);
 
 export function RoomProvider({ children }: { children: ReactNode }) {
-  const [socket, setSocket] = useState<WebSocket | null>(null);
   const [hasJoined, setHasJoined] = useState(false);
   const [remoteChange, setRemoteChange] = useState<Change | null>(null);
   const [initValue, setInitValue] = useState("")
@@ -43,15 +42,22 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   const [usersInRoom, setUsersInRoom] = useState<User[]>([])
   const [alertMessage, setAlertMessage] = useState("")
   const [language, setLanguage] = useState('javascript');
-
+  const wsconnstatusRef = useRef(false);
+  const socketRef = useRef<WebSocket | null>(null)
 
   const joinRoom = (roomId: number, username: string): Promise<void> => {
     return new Promise((resolve, reject) => {
+      if (socketRef.current) {
+        return
+      }
+
+
       const newSocket = new WebSocket(`${import.meta.env.VITE_WS_URL}?roomId=${roomId}&userId=${userId}&username=${username}`);
+      socketRef.current = newSocket
 
       newSocket.onopen = () => {
-        resolve()
         setHasJoined(true);
+        resolve()
         console.log("socket connection is set up")
       };
 
@@ -72,6 +78,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
 
           case "user_rejoin":
             setUsersInRoom(data.usersInRoom);
+            console.log("user rejoin")
             if (data.userId !== userId) {
               const user = data.usersInRoom.find((user: any) => user.userId === data.userId);
               setAlertMessage(`${user.userName} rejoined room`);
@@ -124,14 +131,13 @@ export function RoomProvider({ children }: { children: ReactNode }) {
         setHasJoined(false);
       };
 
-      setSocket(newSocket);
     })
 
   };
 
   const sendChange = (change: Change) => {
-    if (socket?.readyState === WebSocket.OPEN) {
-      socket.send(
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(
         JSON.stringify({
           type: "change",
           change,
@@ -143,10 +149,11 @@ export function RoomProvider({ children }: { children: ReactNode }) {
 
   const sendJoined = (type: string) => {
 
-    if (socket?.readyState === WebSocket.OPEN) {
+    if (socketRef.current) {
       if (type === "New_User_Join") {
 
-        socket.send(
+
+        socketRef.current.send(
           JSON.stringify({
             event: "new_user_joined",
             change: null,
@@ -154,7 +161,8 @@ export function RoomProvider({ children }: { children: ReactNode }) {
           })
         )
       } else {
-        socket.send(
+        console.log("user rejoin")
+        socketRef.current.send(
           JSON.stringify({
             event: "user_rejoin",
             change: null,
@@ -162,13 +170,14 @@ export function RoomProvider({ children }: { children: ReactNode }) {
           })
         )
       }
+    } else {
+      console.log("ws connetion is not ready")
     }
   }
 
   const leaveRoom = () => {
-    console.log("leave room clicked")
-    if (socket?.readyState === WebSocket.OPEN) {
-      socket.send(
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(
         (
           JSON.stringify({
             event: "user_leave",
@@ -177,7 +186,8 @@ export function RoomProvider({ children }: { children: ReactNode }) {
           })
         )
       )
-      socket.close()
+      socketRef.current.close()
+      wsconnstatusRef.current = false
       setHasJoined(false)
     }
 
@@ -186,8 +196,8 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   //below code for new instance creation is not used  
   // when the user clicks "New" button, sendChange performs setting the new code for other editor instances in the room
   const createNewInstance = () => {
-    if (socket?.readyState === WebSocket.OPEN) {
-      socket.send(
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(
         JSON.stringify({
           event: "new_program",
           change: null,
@@ -200,8 +210,8 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   }
 
   const programmingLanguageChange = (lang: string) => {
-    if (socket?.readyState === WebSocket.OPEN) {
-      socket.send(
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(
         JSON.stringify({
           event: "lang_change",
           language: lang,
@@ -214,7 +224,26 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <RoomContext.Provider value={{ programmingLanguageChange, alertMessage, setAlertMessage, leaveRoom, sendJoined, socket, initValue, hasJoined, remoteChange, joinRoom, sendChange, userId, usersInRoom, createNewInstance, language, setLanguage }}>
+    <RoomContext.Provider
+      value={{
+        programmingLanguageChange,
+        alertMessage,
+        setAlertMessage,
+        leaveRoom,
+        sendJoined,
+        wsconnstatus: wsconnstatusRef.current,
+        initValue,
+        hasJoined,
+        remoteChange,
+        joinRoom,
+        sendChange,
+        userId,
+        usersInRoom,
+        createNewInstance,
+        language,
+        setLanguage,
+      }}
+    >
       {children}
     </RoomContext.Provider>
   );

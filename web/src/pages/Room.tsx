@@ -12,7 +12,6 @@ export default function Room() {
   const userName = location.state?.username;
 
   const navigate = useNavigate()
-
   const { roomId } = useParams()
   const { sendJoined, hasJoined, programmingLanguageChange, joinRoom, alertMessage, setAlertMessage, leaveRoom, userId, remoteChange, sendChange, initValue, usersInRoom, language, setLanguage } = useRoom()
   const [copied, setCopied] = useState(false)
@@ -46,12 +45,13 @@ export default function Room() {
   //
   const handleLeavRoom = () => {
     leaveRoom()
-    navigate("/")
+    navigate("/", { replace: true })
 
   }
 
-  const rejoin = async (roomId: number, userName: string) => {
 
+
+  const rejoin = async (roomId: number, userName: string) => {
     await joinRoom(roomId, userName)
     console.log("ws connecion successful")
     sendJoined("Rejoin")
@@ -63,11 +63,13 @@ export default function Room() {
 
       if (roomId && userName) {
         rejoin(parseInt(roomId), userName)
+        console.log(roomId, userName)
       }
 
     } else {
       setTotalUsersInRoom(usersInRoom)
     }
+
   }, [hasJoined])
 
   useEffect(() => {
@@ -164,10 +166,10 @@ export default function Room() {
               {
 
                 alertMessage !== "" &&
-                <div className="w-80 border-zinc-600 border rounded-sm p-10">
-                  <p className="text-white/80 text-sm">{alertMessage}</p>
+                <div className="w-60 border-zinc-600 border rounded-sm p-10">
+                  <p className="text-white/80 text-md font-semibold">{alertMessage}</p>
                   <button onClick={() => setAlertMessage("")}
-                    className="block ml-auto mt-5 bg-white text-black font-semibold py-2 px-3 rounded-md "
+                    className="block ml-auto mt-5 bg-white text-black font-semibold py-1 px-2 rounded-md "
                   >
                     Close
                   </button>
@@ -237,8 +239,8 @@ export default function Room() {
                   Participants
                   <div className="my-4">
                     {
-                      totalUsersInRoom.map((user) =>
-                        <div key={user.userId} className="flex gap-3 items-center my-4">
+                      totalUsersInRoom.map((user, i) =>
+                        <div key={i} className="flex gap-3 items-center my-4">
                           <div className={`w-9 text-center ${user.userId === userId ? "bg-blue-600" : "bg-red-700"} py-2 px-3 rounded-lg`}>
                             {user.userName[0]}
                           </div>
@@ -249,6 +251,7 @@ export default function Room() {
                   </div>
 
                 </div>
+
 
                 <button
                   className="py-2 px-3 bg-red-600 rounded-sm mx-3"
@@ -263,6 +266,7 @@ export default function Room() {
           :
           <LoadingSpinner />
       }
+
 
     </section>
 
