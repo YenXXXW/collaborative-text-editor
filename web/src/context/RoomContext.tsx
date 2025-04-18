@@ -101,13 +101,16 @@ export function RoomProvider({ children }: { children: ReactNode }) {
 
           case "user_leave":
             if (data.userId !== userId) {
-              setAlertMessage(`${userId} left room`);
+
+              const user = data.usersInRoom.find((user: any) => user.userId === data.userId);
+              setAlertMessage(`${user.userName} left room`);
             }
             setUsersInRoom([...data.usersInRoom]);
             break;
 
           case "lang_change":
             if (data.userId !== userId) {
+
               console.log("language change", data.language);
               setLanguage(data.language);
             }

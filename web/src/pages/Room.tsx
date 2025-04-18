@@ -24,7 +24,6 @@ export default function Room() {
   ]);
 
 
-
   const languages: Record<string, string> = {
     "javascript": "js",
     "java": "java",
@@ -54,7 +53,6 @@ export default function Room() {
 
   const rejoin = async (roomId: number, userName: string) => {
     await joinRoom(roomId, userName)
-    console.log("ws connecion successful")
     sendJoined("Rejoin")
   }
 
@@ -64,13 +62,9 @@ export default function Room() {
 
       if (roomId && userName) {
         rejoin(parseInt(roomId), userName)
-        console.log(roomId, userName)
       }
 
-    } else {
-      setTotalUsersInRoom(usersInRoom)
     }
-
   }, [hasJoined])
 
   useEffect(() => {
@@ -97,7 +91,6 @@ export default function Room() {
 
     const a = document.createElement("a");
     a.href = url;
-    console.log(language)
     a.download = `code.${languages[language]}`;
     document.body.appendChild(a);
     a.click();
@@ -127,9 +120,6 @@ export default function Room() {
     }
   }, [usersInRoom])
 
-  useEffect(() => {
-    console.log("has joined", hasJoined)
-  }, [hasJoined])
 
   useEffect(() => {
     if (copied) {
