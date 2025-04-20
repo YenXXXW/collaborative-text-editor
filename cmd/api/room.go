@@ -264,9 +264,33 @@ func applyChange(program string, change *Change) string {
 }
 
 func handleClientReads(client *Client) {
+	var readErr error
+
 	defer func() {
-		roomManager.LeaveRoom(client.RoomId, client)
-		client.Conn.Close()
+		if readErr != nil {
+			if ce, ok := readErr.(*websocket.CloseError); ok && ce.Code == websocket.CloseGoingAway {
+
+				log.Printf("Temporary error for client %s, delaying removal", client.UserId)
+
+				roomManager.LeaveRoom(client.RoomId, client)
+				//go func(c *Client) {
+				//time.Sleep(1 * time.Minute)
+				//if _, stillExists := roomManager.Rooms[c.RoomId].Clients[c]; !stillExists {
+				//
+				//roomManager.LeaveRoom(c.RoomId, c)
+				//c.Conn.Close()
+				//
+				//}
+				//
+				//}(client)
+
+			} else {
+
+				roomManager.LeaveRoom(client.RoomId, client)
+				client.Conn.Close()
+			}
+		}
+
 	}()
 
 	client.Conn.SetReadLimit(maxMessageSize)
@@ -279,12 +303,14 @@ func handleClientReads(client *Client) {
 	for {
 		_, message, err := client.Conn.ReadMessage()
 		if err != nil {
+			readErr = err
 			log.Printf("Error reading message: %v", err)
 			break
 		}
 
 		var msg Message
 		if err := json.Unmarshal(message, &msg); err != nil {
+			readErr = err
 			log.Printf("Error unmarshalling message: %v", err)
 			break
 		}
@@ -293,6 +319,7 @@ func handleClientReads(client *Client) {
 		room, ok := roomManager.Rooms[client.RoomId]
 		if ok {
 			if msg.Change != nil {
+				log.Println(msg.Change)
 				room.Program = applyChange(room.Program, msg.Change)
 			}
 			if msg.Event != nil && (*msg.Event == "new_user_joined" || *msg.Event == "user_rejoin") {
@@ -330,12 +357,14 @@ func handleClientReads(client *Client) {
 
 			}
 		}
+
+		roomManager.Mutex.Unlock()
+
 		jsonMsg, err := json.Marshal(msg)
 		if err != nil {
 			log.Printf("Error marshalling message: %v", err)
 			continue
 		}
-		roomManager.Mutex.Unlock()
 		roomManager.BroadcastToRoom(client.RoomId, jsonMsg)
 	}
 }
