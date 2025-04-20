@@ -14,15 +14,22 @@ export default function Room() {
 
   const navigate = useNavigate()
   const { roomId } = useParams()
-  const { sendJoined, hasJoined, programmingLanguageChange, joinRoom, alertMessage, setAlertMessage, leaveRoom, userId, remoteChange, sendChange, initValue, usersInRoom, language, setLanguage } = useRoom()
+  const { sendJoined, hasJoined, programmingLanguageChange, joinRoom, alertMessage, setAlertMessage, leaveRoom, remoteChange, sendChange, initValue, usersInRoom, language, setLanguage } = useRoom()
   const [copied, setCopied] = useState(false)
+  const [userId, setUserId] = useState(localStorage.getItem("userId"))
+  const [userLeave, setUserLeave] = useState(false)
   const [totalUsersInRoom, setTotalUsersInRoom] = useState<User[]>([
     {
-      userId,
-      userName: userName ?? "wai"
+      userId: userId!,
+      userName: userName
     }
   ]);
 
+  useEffect(() => {
+    console.log("total users in room", totalUsersInRoom)
+    console.log("userId", userId)
+    console.log("type of userId", typeof userId)
+  }, [])
 
   const languages: Record<string, string> = {
     "javascript": "js",
@@ -44,6 +51,7 @@ export default function Room() {
   //]
   //
   const handleLeavRoom = () => {
+    setUserLeave(true)
     leaveRoom()
     navigate("/", { replace: true })
 
@@ -52,12 +60,15 @@ export default function Room() {
 
 
   const rejoin = async (roomId: number, userName: string) => {
-    await joinRoom(roomId, userName)
+    const userId = localStorage.getItem("cteuserId")
+    if (!userId) return
+    setUserId(userId)
+    await joinRoom(roomId, userName, userId)
     sendJoined("Rejoin")
   }
 
   useEffect(() => {
-    if (!hasJoined) {
+    if (!hasJoined && !userLeave) {
       const userName = localStorage.getItem("cteusername")
 
       if (roomId && userName) {

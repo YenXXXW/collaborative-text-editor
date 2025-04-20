@@ -5,6 +5,8 @@ import { useRoom } from "@/context/RoomContext"
 import { useLocation, useNavigate } from "react-router-dom"
 import LOGO from "@/assets/logo.png"
 import LoadingSpinner from "@/components/LoadingSpinner"
+import { JoinRoomService } from "@/services/joinRoomService"
+import { AxiosError } from "axios"
 
 export default function JoinRoomPage() {
 
@@ -13,11 +15,35 @@ export default function JoinRoomPage() {
   const [loading, setLoading] = useState(false)
 
 
-  const { sendJoined, joinRoom, hasJoined, initValue } = useRoom()
+  const { sendJoined, joinRoom, hasJoined, initValue, userId } = useRoom()
   const [roomId, setRoomId] = useState<number | null>(null)
   const [username, setUsername] = useState(userName || "")
+  const [errorMessage, setErrorMessage] = useState("")
 
   const navigate = useNavigate()
+
+  const handleJoinRoom = async (roomId: number | null) => {
+    if (roomId) {
+      setErrorMessage('')
+      setLoading(true)
+      localStorage.setItem("cteusername", username);
+      localStorage.setItem("cteuserId", userId)
+      try {
+
+        await JoinRoomService.checkRoom(roomId)
+        await joinRoom(roomId, username, userId)
+      } catch (error) {
+        if (error instanceof AxiosError) {
+          setErrorMessage(error.response?.data.error)
+          return
+        }
+        setErrorMessage("something went wrong")
+
+      } finally {
+        setLoading(false)
+      }
+    }
+  }
 
   useEffect(() => {
     if (hasJoined) {
@@ -58,19 +84,20 @@ export default function JoinRoomPage() {
           />
           <Button
             className={`w-full ${username === "" && "opacity-90 pointer-events-none"}`}
-            onClick={async () => {
-              if (roomId) {
-                setLoading(true)
-                localStorage.setItem("cteusername", username);
-                await joinRoom(roomId, username)
-              }
-            }}
+            onClick={() => handleJoinRoom(roomId)}
           >Join Room</Button>
 
           {
             loading &&
             <div className='absolute bottom-[-20%]'>
               <LoadingSpinner />
+            </div>
+          }
+
+          {
+            errorMessage !== '' &&
+            <div className='absolute bottom-[-20%]'>
+              {errorMessage}
             </div>
           }
         </div>

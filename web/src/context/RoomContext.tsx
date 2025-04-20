@@ -17,7 +17,7 @@ interface RoomContextType {
   hasJoined: boolean;
   remoteChange: Change | null;
   initValue: string,
-  joinRoom: (roomId: number, username: string) => Promise<void>;
+  joinRoom: (roomId: number, username: string, UserId: string) => Promise<void>;
   sendChange: (change: Change) => void;
   sendJoined: (type: string) => void;
   leaveRoom: () => void;
@@ -45,14 +45,15 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   const wsconnstatusRef = useRef(false);
   const socketRef = useRef<WebSocket | null>(null)
 
-  const joinRoom = (roomId: number, username: string): Promise<void> => {
+  const joinRoom = (roomId: number, username: string, UserId: string): Promise<void> => {
     return new Promise((resolve, reject) => {
       if (socketRef.current) {
         return
       }
 
 
-      const newSocket = new WebSocket(`${import.meta.env.VITE_WS_URL}?roomId=${roomId}&userId=${userId}&username=${username}`);
+
+      const newSocket = new WebSocket(`${import.meta.env.VITE_WS_URL}?roomId=${roomId}&userId=${UserId}&username=${username}`);
       socketRef.current = newSocket
 
       newSocket.onopen = () => {
@@ -102,9 +103,9 @@ export function RoomProvider({ children }: { children: ReactNode }) {
           case "user_leave":
             if (data.userId !== userId) {
 
-              const user = data.usersInRoom.find((user: any) => user.userId === data.userId);
-              setAlertMessage(`${user.userName} left room`);
+              setAlertMessage(`${data.leaveuser.userName} left room`);
             }
+            console.log("users in room", ...data.usersInRoom)
             setUsersInRoom([...data.usersInRoom]);
             break;
 
@@ -189,7 +190,8 @@ export function RoomProvider({ children }: { children: ReactNode }) {
           })
         )
       )
-      socketRef.current.close()
+      socketRef.current.close(1000, 'user left the room')
+      socketRef.current = null
       wsconnstatusRef.current = false
       setHasJoined(false)
     }

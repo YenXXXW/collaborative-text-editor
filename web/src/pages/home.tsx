@@ -16,11 +16,19 @@ export default function Home() {
 
   const createRoom = async () => {
 
-    setLoading(true)
-    const res = await RoomCreateService(userId, username)
-    console.log(res)
-    setRoomId(res.room_id)
-    joinRoom(res.room_id, res.username)
+    try {
+      setLoading(true)
+      const res = await RoomCreateService(userId, username)
+      localStorage.setItem("cteusername", username)
+      localStorage.setItem("cteuserId", userId)
+      setRoomId(res.room_id)
+      joinRoom(res.room_id, res.username, userId)
+
+    } catch (error) {
+
+    } finally {
+      setLoading(false)
+    }
   }
 
   // Watch for hasJoined to change and navigate after connection is established
@@ -47,12 +55,14 @@ export default function Home() {
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)}
         />
 
-        <Button className={`${username === "" && "opacity-90 pointer-events-none"} w-full`} onClick={createRoom}>Create A Room</Button>
+        <Button className={`${username === "" && "opacity-90 pointer-events-none"} w-full`}
+          onClick={createRoom}>
+          Create A Room
+        </Button>
         <Button
           className='w-full'
           onClick={() => {
             console.log("usernmae", username)
-            localStorage.setItem("cteusername", username)
             navigate("/join-room", { state: { username } })
           }}
         >

@@ -30,9 +30,10 @@ type Client struct {
 }
 
 type Room struct {
-	Program  string
-	Language string
-	Clients  map[*Client]bool
+	Program  string            `json:"program"`
+	Language string            `json:"language"`
+	Clients  map[*Client]bool  `json:"-"`
+	Users    map[string]string `json:"users"`
 }
 
 type RoomManager struct {
@@ -71,14 +72,21 @@ type Message struct {
 	Language    *string    `json:"language,omitempty"`
 	Event       *string    `json:"event,omitempty"`
 	UsersInRoom []User     `json:"usersInRoom,omitempty"`
+	LeaveUser   *User      `json:"leaveuser"`
 }
 
 func CreateRoom(client *Client) *Room {
-	return &Room{
+	room := &Room{
 		Program:  "// some comments",
 		Clients:  make(map[*Client]bool),
 		Language: "javascript",
+		Users:    make(map[string]string),
 	}
+
+	//room.Clients[client] = true
+	//room.Users[client.UserId] = client.UserName
+
+	return room
 }
 
 func (rm *RoomManager) JoinRoom(roomId string, client *Client) {
@@ -90,6 +98,7 @@ func (rm *RoomManager) JoinRoom(roomId string, client *Client) {
 	}
 
 	rm.Rooms[roomId].Clients[client] = true
+	rm.Rooms[roomId].Users[client.UserId] = client.UserName
 }
 
 func (rm *RoomManager) checkRoom(rooomId string) bool {
@@ -106,11 +115,25 @@ func (rm *RoomManager) LeaveRoom(roomId string, client *Client) {
 		return
 	}
 
-	delete(room.Clients, client)
+	delete(room.Users, client.UserId)
 
 	if len(room.Clients) == 0 {
 		delete(rm.Rooms, roomId)
 	}
+}
+
+func (rm *RoomManager) RemoveClient(roomId string, client *Client) {
+	rm.Mutex.Lock()
+	defer rm.Mutex.Unlock()
+
+	room, ok := rm.Rooms[roomId]
+
+	if !ok {
+		return
+	}
+
+	delete(room.Clients, client)
+
 }
 
 func (rm *RoomManager) BroadcastToRoom(roomId string, message []byte) {
@@ -123,6 +146,7 @@ func (rm *RoomManager) BroadcastToRoom(roomId string, message []byte) {
 			case client.Send <- message:
 
 			default:
+				rm.RemoveClient(roomId, client)
 				rm.LeaveRoom(roomId, client)
 			}
 		}
@@ -151,6 +175,32 @@ func pointerToString(s string) *string {
 	return &s
 }
 
+func (app *application) handleCheckRoom(w http.ResponseWriter, r *http.Request) {
+
+	roomId := r.URL.Query().Get("roomId")
+	if roomId == "" {
+		app.badRequestResponse(w, r, errors.New("roomId is required"))
+		return
+	}
+
+	exists := roomManager.checkRoom(roomId)
+
+	if !exists {
+		app.badRequestResponse(w, r, errors.New("room does not exist"))
+		return
+	}
+
+	room := roomManager.Rooms[roomId]
+
+	response := map[string]Room{
+		"room": *room,
+	}
+
+	log.Println("response", response)
+
+	app.jsonResponse(w, http.StatusOK, response)
+}
+
 func (app *application) joinRoomHandler(w http.ResponseWriter, r *http.Request) {
 	roomId := r.URL.Query().Get("roomId")
 	userId := r.URL.Query().Get("userId")
@@ -174,9 +224,13 @@ func (app *application) joinRoomHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	log.Printf("roomId %v, userId %v, username %v", roomId, userId, username)
+
 	exists := roomManager.checkRoom(roomId)
 
 	if !exists {
+		log.Printf("room does not exist")
+
 		app.badRequestResponse(w, r, errors.New("room does not exists"))
 		return
 	}
@@ -270,23 +324,26 @@ func handleClientReads(client *Client) {
 		if readErr != nil {
 			if ce, ok := readErr.(*websocket.CloseError); ok && ce.Code == websocket.CloseGoingAway {
 
+				roomManager.RemoveClient(client.RoomId, client)
 				log.Printf("Temporary error for client %s, delaying removal", client.UserId)
 
-				roomManager.LeaveRoom(client.RoomId, client)
-				//go func(c *Client) {
-				//time.Sleep(1 * time.Minute)
-				//if _, stillExists := roomManager.Rooms[c.RoomId].Clients[c]; !stillExists {
-				//
-				//roomManager.LeaveRoom(c.RoomId, c)
-				//c.Conn.Close()
-				//
-				//}
-				//
-				//}(client)
+				go func(c *Client) {
+					time.Sleep(1 * time.Minute)
+					if _, stillExists := roomManager.Rooms[c.RoomId].Clients[c]; !stillExists {
+
+						roomManager.LeaveRoom(c.RoomId, c)
+						close(c.Send)
+						c.Conn.Close()
+
+					}
+
+				}(client)
 
 			} else {
-
+				roomManager.RemoveClient(client.RoomId, client)
 				roomManager.LeaveRoom(client.RoomId, client)
+
+				close(client.Send)
 				client.Conn.Close()
 			}
 		}
@@ -304,7 +361,7 @@ func handleClientReads(client *Client) {
 		_, message, err := client.Conn.ReadMessage()
 		if err != nil {
 			readErr = err
-			log.Printf("Error reading message: %v", err)
+			log.Printf("Error reading message in handleClientReads: %v", err)
 			break
 		}
 
@@ -324,27 +381,35 @@ func handleClientReads(client *Client) {
 			}
 			if msg.Event != nil && (*msg.Event == "new_user_joined" || *msg.Event == "user_rejoin") {
 				var usersInRoom []User
-				for client := range room.Clients {
+				for key, value := range room.Users {
 					usersInRoom = append(usersInRoom, User{
-						UserId:   client.UserId,
-						UserName: client.UserName,
+						UserId:   key,
+						UserName: value,
 					})
 				}
 				msg.UsersInRoom = usersInRoom
 			}
 			if msg.Event != nil && *msg.Event == "user_leave" {
 
+				leaveUser := User{
+					UserId:   client.UserId,
+					UserName: room.Users[client.UserName],
+				}
+
+				delete(room.Users, client.UserId)
+				delete(room.Clients, client)
+
+				msg.LeaveUser = &leaveUser
 				var usersInRoom []User
 
-				delete(room.Clients, client)
-				for client := range room.Clients {
+				for key, value := range room.Users {
 					usersInRoom = append(usersInRoom, User{
-						UserId:   client.UserId,
-						UserName: client.UserName,
+						UserId:   key,
+						UserName: value,
 					})
-
 				}
 				msg.UsersInRoom = usersInRoom
+				log.Println(usersInRoom)
 
 			}
 
