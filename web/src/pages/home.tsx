@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { v4 as uuid } from 'uuid';
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { RoomCreateService } from '@/services/roomCreateService'
@@ -7,12 +8,24 @@ import { useEffect, useState } from 'react'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import LOGO from "@/assets/logo.png"
 
+
 export default function Home() {
-  const { joinRoom, hasJoined, userId } = useRoom()
+  const { joinRoom, hasJoined, userId, setUserId } = useRoom()
   const navigate = useNavigate()
   const [roomId, setRoomId] = useState("")
   const [username, setUsername] = useState(localStorage.getItem("cteusername") || "")
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    let newUserId = localStorage.getItem("cteuserId")
+    if (!newUserId) {
+      newUserId = uuid()
+    }
+    console.log(newUserId)
+
+    setUserId(newUserId)
+    localStorage.setItem('cteuserId', newUserId)
+  }, [])
 
   const createRoom = async () => {
 
@@ -20,7 +33,6 @@ export default function Home() {
       setLoading(true)
       const res = await RoomCreateService(userId, username)
       localStorage.setItem("cteusername", username)
-      localStorage.setItem("cteuserId", userId)
       setRoomId(res.room_id)
       joinRoom(res.room_id, res.username, userId)
 

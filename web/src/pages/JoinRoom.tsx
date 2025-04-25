@@ -8,6 +8,7 @@ import LoadingSpinner from "@/components/LoadingSpinner"
 import { JoinRoomService } from "@/services/joinRoomService"
 import { AxiosError } from "axios"
 
+
 export default function JoinRoomPage() {
 
   const location = useLocation();
@@ -27,7 +28,6 @@ export default function JoinRoomPage() {
       setErrorMessage('')
       setLoading(true)
       localStorage.setItem("cteusername", username);
-      localStorage.setItem("cteuserId", userId)
       try {
 
         await JoinRoomService.checkRoom(roomId)

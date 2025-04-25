@@ -1,6 +1,5 @@
 import { User } from '@/model/User';
-import { createContext, useContext, ReactNode, useState, useRef } from 'react';
-import { v4 as uuid } from 'uuid';
+import { createContext, useContext, ReactNode, useState, useRef, useEffect } from 'react';
 
 interface Change {
   startLineNumber: number;
@@ -17,7 +16,7 @@ interface RoomContextType {
   hasJoined: boolean;
   remoteChange: Change | null;
   initValue: string,
-  joinRoom: (roomId: number, username: string, UserId: string) => Promise<void>;
+  joinRoom: (roomId: number, username: string, userId: string) => Promise<void>;
   sendChange: (change: Change) => void;
   sendJoined: (type: string) => void;
   leaveRoom: () => void;
@@ -29,6 +28,7 @@ interface RoomContextType {
   programmingLanguageChange: (lang: string) => void,
   language: string,
   setLanguage: React.Dispatch<React.SetStateAction<string>>,
+  setUserId: React.Dispatch<React.SetStateAction<string>>
 
 }
 
@@ -38,12 +38,19 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   const [hasJoined, setHasJoined] = useState(false);
   const [remoteChange, setRemoteChange] = useState<Change | null>(null);
   const [initValue, setInitValue] = useState("")
-  const [userId] = useState(uuid())
+  const [userId, setUserId] = useState('')
   const [usersInRoom, setUsersInRoom] = useState<User[]>([])
   const [alertMessage, setAlertMessage] = useState("")
   const [language, setLanguage] = useState('javascript');
   const wsconnstatusRef = useRef(false);
   const socketRef = useRef<WebSocket | null>(null)
+  const userIdRef = useRef('')
+
+
+  useEffect(() => {
+    userIdRef.current = userId;
+    console.log("userId in context", userIdRef)
+  }, [userId]);
 
   const joinRoom = (roomId: number, username: string, UserId: string): Promise<void> => {
     return new Promise((resolve, reject) => {
@@ -53,6 +60,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
 
 
 
+      console.log("userId before the ws", userIdRef.current)
       const newSocket = new WebSocket(`${import.meta.env.VITE_WS_URL}?roomId=${roomId}&userId=${UserId}&username=${username}`);
       socketRef.current = newSocket
 
@@ -67,7 +75,11 @@ export function RoomProvider({ children }: { children: ReactNode }) {
 
         switch (data.event || data.type) {
           case "change":
-            if (data.userId !== userId) {
+
+            if (data.userId !== userIdRef.current) {
+
+              console.log(data)
+              console.log(userIdRef)
               setRemoteChange(data.change);
             }
             break;
@@ -79,8 +91,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
 
           case "user_rejoin":
             setUsersInRoom(data.usersInRoom);
-            console.log("user rejoin")
-            if (data.userId !== userId) {
+            if (data.userId !== userIdRef.current) {
               const user = data.usersInRoom.find((user: any) => user.userId === data.userId);
               setAlertMessage(`${user.userName} rejoined room`);
             }
@@ -88,20 +99,22 @@ export function RoomProvider({ children }: { children: ReactNode }) {
 
           case "new_user_joined":
             setUsersInRoom(data.usersInRoom);
-            if (data.userId !== userId) {
+            if (data.userId !== userIdRef.current) {
               const user = data.usersInRoom.find((user: any) => user.userId === data.userId);
               setAlertMessage(`${user.userName} joined room`);
             }
+
+            setUsersInRoom([...data.usersInRoom]);
             break;
 
           case "new_program":
-            if (data.userId !== userId) {
+            if (data.userId !== userIdRef.current) {
               setInitValue("//some comment");
             }
             break;
 
           case "user_leave":
-            if (data.userId !== userId) {
+            if (data.userId !== userIdRef.current) {
 
               setAlertMessage(`${data.leaveuser.userName} left room`);
             }
@@ -110,7 +123,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
             break;
 
           case "lang_change":
-            if (data.userId !== userId) {
+            if (data.userId !== userIdRef.current) {
 
               console.log("language change", data.language);
               setLanguage(data.language);
@@ -145,7 +158,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
         JSON.stringify({
           type: "change",
           change,
-          userId: userId
+          userId: userIdRef.current
         })
       );
     }
@@ -161,16 +174,15 @@ export function RoomProvider({ children }: { children: ReactNode }) {
           JSON.stringify({
             event: "new_user_joined",
             change: null,
-            userId: userId
+            userId: userIdRef.current
           })
         )
       } else {
-        console.log("user rejoin")
         socketRef.current.send(
           JSON.stringify({
             event: "user_rejoin",
             change: null,
-            userId: userId
+            userId: userIdRef.current
           })
         )
       }
@@ -186,7 +198,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
           JSON.stringify({
             event: "user_leave",
             change: null,
-            userId: userId
+            userId: userIdRef.current
           })
         )
       )
@@ -206,7 +218,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
         JSON.stringify({
           event: "new_program",
           change: null,
-          userId: userId
+          userId: userIdRef.current
         })
       )
     }
@@ -221,7 +233,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
           event: "lang_change",
           language: lang,
           change: null,
-          userId: userId
+          userId: userIdRef.current
         })
       )
     }
@@ -231,6 +243,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   return (
     <RoomContext.Provider
       value={{
+        setUserId,
         programmingLanguageChange,
         alertMessage,
         setAlertMessage,

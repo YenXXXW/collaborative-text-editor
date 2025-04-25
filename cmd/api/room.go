@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -41,6 +42,11 @@ type RoomManager struct {
 	Mutex sync.Mutex
 	App   application
 }
+
+var reconnectTimers = struct {
+	sync.RWMutex
+	m map[string]context.CancelFunc
+}{m: make(map[string]context.CancelFunc)}
 
 type ChangeType string
 
@@ -146,6 +152,7 @@ func (rm *RoomManager) BroadcastToRoom(roomId string, message []byte) {
 			case client.Send <- message:
 
 			default:
+
 				rm.RemoveClient(roomId, client)
 				rm.LeaveRoom(roomId, client)
 			}
@@ -327,14 +334,28 @@ func handleClientReads(client *Client) {
 				roomManager.RemoveClient(client.RoomId, client)
 				log.Printf("Temporary error for client %s, delaying removal", client.UserId)
 
+				ctx, cancel := context.WithCancel(context.Background())
+
+				reconnectTimers.RWMutex.Lock()
+				reconnectTimers.m[client.UserId] = cancel
+
+				reconnectTimers.RWMutex.Unlock()
+
 				go func(c *Client) {
-					time.Sleep(1 * time.Minute)
-					if _, stillExists := roomManager.Rooms[c.RoomId].Clients[c]; !stillExists {
-
+					select {
+					case <-time.After(15 * time.Second):
+						log.Printf("User %s did not rejoin in time", c.UserId)
+						roomManager.RemoveClient(c.RoomId, c)
 						roomManager.LeaveRoom(c.RoomId, c)
-						close(c.Send)
-						c.Conn.Close()
+						close(client.Send)
+						client.Conn.Close()
 
+						reconnectTimers.Lock()
+						delete(reconnectTimers.m, c.UserId)
+						reconnectTimers.Unlock()
+
+					case <-ctx.Done():
+						log.Printf("User %s rejoined, canceled cleanup", c.UserId)
 					}
 
 				}(client)
@@ -380,6 +401,16 @@ func handleClientReads(client *Client) {
 				room.Program = applyChange(room.Program, msg.Change)
 			}
 			if msg.Event != nil && (*msg.Event == "new_user_joined" || *msg.Event == "user_rejoin") {
+				if *msg.Event == "user_rejoin" {
+
+					log.Printf("user %s rejoins the room", msg.UserId)
+					if cancel, exists := reconnectTimers.m[msg.UserId]; exists {
+						cancel()
+						delete(reconnectTimers.m, msg.UserId)
+
+					}
+
+				}
 				var usersInRoom []User
 				for key, value := range room.Users {
 					usersInRoom = append(usersInRoom, User{
@@ -391,6 +422,7 @@ func handleClientReads(client *Client) {
 			}
 			if msg.Event != nil && *msg.Event == "user_leave" {
 
+				log.Printf("user leave %s", msg.UserId)
 				leaveUser := User{
 					UserId:   client.UserId,
 					UserName: room.Users[client.UserName],

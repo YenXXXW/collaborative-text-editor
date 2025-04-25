@@ -14,9 +14,9 @@ export default function Room() {
 
   const navigate = useNavigate()
   const { roomId } = useParams()
-  const { sendJoined, hasJoined, programmingLanguageChange, joinRoom, alertMessage, setAlertMessage, leaveRoom, remoteChange, sendChange, initValue, usersInRoom, language, setLanguage } = useRoom()
+  const { setUserId, sendJoined, hasJoined, programmingLanguageChange, joinRoom, alertMessage, setAlertMessage, leaveRoom, remoteChange, sendChange, initValue, usersInRoom, language, setLanguage } = useRoom()
   const [copied, setCopied] = useState(false)
-  const [userId, setUserId] = useState(localStorage.getItem("userId"))
+  const userId = localStorage.getItem("cteuserId")
   const [userLeave, setUserLeave] = useState(false)
   const [totalUsersInRoom, setTotalUsersInRoom] = useState<User[]>([
     {
@@ -25,11 +25,6 @@ export default function Room() {
     }
   ]);
 
-  useEffect(() => {
-    console.log("total users in room", totalUsersInRoom)
-    console.log("userId", userId)
-    console.log("type of userId", typeof userId)
-  }, [])
 
   const languages: Record<string, string> = {
     "javascript": "js",
@@ -61,6 +56,7 @@ export default function Room() {
 
   const rejoin = async (roomId: number, userName: string) => {
     const userId = localStorage.getItem("cteuserId")
+    console.log("userId afte the reload", userId)
     if (!userId) return
     setUserId(userId)
     await joinRoom(roomId, userName, userId)
@@ -230,7 +226,10 @@ export default function Room() {
             <div className="flex bg-neutral-800">
               <Editor
                 ref={editorRef}
-                onChangeHandler={sendChange}
+                onChangeHandler={(change) => {
+                  if (userId)
+                    sendChange(change)
+                }}
                 remoteChange={remoteChange}
                 initialValue={initValue}
                 language={language}
