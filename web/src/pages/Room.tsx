@@ -6,6 +6,7 @@ import { User } from "@/model/User"
 import { IoCopyOutline, IoCopySharp } from "react-icons/io5"
 import LOGO from "@/assets/logo.png"
 import LoadingSpinner from "@/components/LoadingSpinner"
+import { HiOutlineMenuAlt3 } from "react-icons/hi";
 
 export default function Room() {
   const location = useLocation();
@@ -14,16 +15,22 @@ export default function Room() {
 
   const navigate = useNavigate()
   const { roomId } = useParams()
-  const { setUserId, sendJoined, hasJoined, programmingLanguageChange, joinRoom, alertMessage, setAlertMessage, leaveRoom, remoteChange, sendChange, initValue, usersInRoom, language, setLanguage } = useRoom()
+  const newInstanceCreateRef = useRef(false)
+  const { resetRemoteNewProgramChangeFlag, remoteNewInstanceFlag, newProgramInstance, setUserId, sendJoined, hasJoined, programmingLanguageChange, joinRoom, alertMessage, setAlertMessage, leaveRoom, remoteChange, sendChange, initValue, usersInRoom, language, setLanguage } = useRoom()
   const [copied, setCopied] = useState(false)
   const userId = localStorage.getItem("cteuserId")
   const [userLeave, setUserLeave] = useState(false)
+  const [showSiderBar, setShowSiderBar] = useState(false)
   const [totalUsersInRoom, setTotalUsersInRoom] = useState<User[]>([
     {
       userId: userId!,
       userName: userName
     }
   ]);
+
+  useEffect(() => {
+    console.log("showSidebar", showSiderBar)
+  }, [showSiderBar])
 
 
   const languages: Record<string, string> = {
@@ -56,7 +63,6 @@ export default function Room() {
 
   const rejoin = async (roomId: number, userName: string) => {
     const userId = localStorage.getItem("cteuserId")
-    console.log("userId afte the reload", userId)
     if (!userId) return
     setUserId(userId)
     await joinRoom(roomId, userName, userId)
@@ -73,6 +79,17 @@ export default function Room() {
 
     }
   }, [hasJoined])
+
+
+  useEffect(() => {
+    if (remoteNewInstanceFlag) {
+      newInstanceCreateRef.current = true
+      const editorInstance = editorRef.current?.getEditorInstance()
+      editorInstance?.setValue('// some comment')
+      resetRemoteNewProgramChangeFlag()
+      //this is not good but this will casue one effect only as the resetRemoteNewProgramChangeRef only run the remoteNewInstance RRef is true  
+    }
+  }, [remoteNewInstanceFlag])
 
   useEffect(() => {
     if (alertMessage !== "") {
@@ -107,22 +124,34 @@ export default function Room() {
   };
 
   const handleCreateNewInstance = () => {
+    try {
+      newInstanceCreateRef.current = true
+      newProgramInstance()
 
-    const editorInstance = editorRef.current?.getEditorInstance();
+      const editorInstance = editorRef.current?.getEditorInstance();
+      if (!editorInstance) {
+        throw new Error("Editor instance not found.");
+      }
 
-    if (!editorInstance) {
-      console.error("Editor instance not found.");
-      return;
+      editorInstance.setValue("//some comment")
+    } catch (err) {
+      console.error("error creating new program instance", err)
+
     }
-
-    editorInstance.setValue("//some comment")
 
   }
 
 
   useEffect(() => {
     if (usersInRoom.length > 0) {
-      setTotalUsersInRoom(usersInRoom)
+      const thisuser = usersInRoom.find(user => user.userId == userId)
+      const otherUsers = usersInRoom.filter(user => user.userId !== userId)
+
+      if (thisuser) {
+
+        const sortedusers = [thisuser, ...otherUsers]
+        setTotalUsersInRoom(sortedusers)
+      }
 
     }
   }, [usersInRoom])
@@ -220,47 +249,64 @@ export default function Room() {
                   Download
                 </button>
 
+                <button onClick={() => setShowSiderBar(!showSiderBar)}>
+                  <HiOutlineMenuAlt3 size={21} />
+                </button>
               </div>
 
             </div>
             <div className="flex bg-neutral-800">
-              <Editor
-                ref={editorRef}
-                onChangeHandler={(change) => {
-                  if (userId)
-                    sendChange(change)
-                }}
-                remoteChange={remoteChange}
-                initialValue={initValue}
-                language={language}
-              />
+              <div className={`${showSiderBar ? 'w-[80vw]' : 'w-[100vw]'}`}>
+                <Editor
+                  ref={editorRef}
+                  onChangeHandler={(change) => {
+                    if (userId)
+                      if (!newInstanceCreateRef.current) {
+                        sendChange(change)
+                      } else {
+                        newInstanceCreateRef.current = false;
+                      }
 
-              <div className="w-[20vw] flex flex-col justify-between pt-5 pb-10 px-4">
-                <div>
-                  Participants
-                  <div className="my-4">
-                    {
-                      totalUsersInRoom.map((user, i) =>
-                        <div key={i} className="flex gap-3 items-center my-4">
-                          <div className={`w-9 text-center ${user.userId === userId ? "bg-blue-600" : "bg-red-700"} py-2 px-3 rounded-lg`}>
-                            {user.userName[0]}
+                  }}
+                  remoteChange={remoteChange}
+                  initialValue={initValue}
+                  language={language}
+                />
+              </div>
+
+              {
+                <div
+                  className={`fixed top-[6vh] right-0 h-[94vh] bg-neutral-900 shadow-lg w-[20vw] flex flex-col justify-between pt-5 pb-10 px-4
+    transition-transform duration-300 ease-in-out
+    ${showSiderBar ? 'translate-x-0' : 'translate-x-full'}
+  `}
+                >
+                  <div>
+                    Participants
+                    <div className="my-4">
+                      {
+                        totalUsersInRoom.map((user, i) =>
+                          <div key={i} className="flex gap-3 items-center my-4">
+                            <div className={`w-9 text-center ${user.userId === userId ? "bg-green-600" : "bg-blue-500"} py-2 px-3 rounded-lg`}>
+                              {user.userName[0]}
+                            </div>
+                            {user.userName}
                           </div>
-                          {user.userName}
-                        </div>
-                      )
-                    }
+                        )
+                      }
+                    </div>
+
                   </div>
 
+
+                  <button
+                    className="py-2 px-3 bg-red-600 rounded-sm mx-3"
+                    onClick={handleLeavRoom}
+                  >
+                    Leave
+                  </button>
                 </div>
-
-
-                <button
-                  className="py-2 px-3 bg-red-600 rounded-sm mx-3"
-                  onClick={handleLeavRoom}
-                >
-                  Leave
-                </button>
-              </div>
+              }
             </div>
           </>
 
@@ -269,7 +315,7 @@ export default function Room() {
       }
 
 
-    </section>
+    </section >
 
   )
 

@@ -63,6 +63,7 @@ export default function Home() {
         <Input
           type="text"
           value={username}
+          maxLength={10}
           placeholder='Enter UserName'
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)}
         />

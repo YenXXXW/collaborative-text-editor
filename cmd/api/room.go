@@ -396,7 +396,7 @@ func handleClientReads(client *Client) {
 		roomManager.Mutex.Lock()
 		room, ok := roomManager.Rooms[client.RoomId]
 		if ok {
-			if msg.Change != nil {
+			if msg.Change != nil && msg.Event == nil {
 				log.Println(msg.Change)
 				room.Program = applyChange(room.Program, msg.Change)
 			}

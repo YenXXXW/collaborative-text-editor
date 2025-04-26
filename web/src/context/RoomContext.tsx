@@ -29,6 +29,9 @@ interface RoomContextType {
   language: string,
   setLanguage: React.Dispatch<React.SetStateAction<string>>,
   setUserId: React.Dispatch<React.SetStateAction<string>>
+  newProgramInstance: () => void
+  remoteNewInstanceFlag: boolean
+  resetRemoteNewProgramChangeFlag: () => void
 
 }
 
@@ -44,8 +47,12 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   const [language, setLanguage] = useState('javascript');
   const wsconnstatusRef = useRef(false);
   const socketRef = useRef<WebSocket | null>(null)
+
+
   const userIdRef = useRef('')
 
+  //when the other users click the New
+  const [remoteNewInstanceFlag, setRemoteNewInstanceFlag] = useState(false);
 
   useEffect(() => {
     userIdRef.current = userId;
@@ -109,7 +116,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
 
           case "new_program":
             if (data.userId !== userIdRef.current) {
-              setInitValue("//some comment");
+              setRemoteNewInstanceFlag(true)
             }
             break;
 
@@ -240,6 +247,25 @@ export function RoomProvider({ children }: { children: ReactNode }) {
 
   }
 
+  const newProgramInstance = () => {
+
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(
+        JSON.stringify({
+          event: "new_program",
+          change: null,
+          userId: userIdRef.current
+        })
+      )
+    }
+
+  }
+
+  const resetRemoteNewProgramChangeFlag = () => {
+    setRemoteNewInstanceFlag(false)
+
+  }
+
   return (
     <RoomContext.Provider
       value={{
@@ -260,6 +286,9 @@ export function RoomProvider({ children }: { children: ReactNode }) {
         createNewInstance,
         language,
         setLanguage,
+        newProgramInstance,
+        remoteNewInstanceFlag: remoteNewInstanceFlag,
+        resetRemoteNewProgramChangeFlag: resetRemoteNewProgramChangeFlag
       }}
     >
       {children}
