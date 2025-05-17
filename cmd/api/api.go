@@ -63,6 +63,7 @@ func (app *application) mount() http.Handler {
 		r.Get("/ws", app.joinRoomHandler)
 		r.Get("/check-room", app.handleCheckRoom)
 		r.Post("/create-room", app.createRoomHandler)
+		r.Get("/runcode", app.runCodeHandler)
 	})
 
 	return r

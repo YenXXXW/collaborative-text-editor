@@ -4,7 +4,13 @@ export const JoinRoomService = {
   async checkRoom(roomId: number) {
     const res = await axiosInstance.get(`/check-room?roomId=${roomId}`)
     return res
+  },
+
+  async runcode() {
+    await axiosInstance.get('/runcode')
   }
+
+
 
 
 }

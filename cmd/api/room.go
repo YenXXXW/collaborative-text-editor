@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -79,6 +81,18 @@ type Message struct {
 	Event       *string    `json:"event,omitempty"`
 	UsersInRoom []User     `json:"usersInRoom,omitempty"`
 	LeaveUser   *User      `json:"leaveuser"`
+}
+
+type CodeResult struct {
+	Run struct {
+		Stdout string      `json:"stdout"`
+		Stderr string      `json:"stderr"`
+		Code   int         `json:"code"`
+		Signal interface{} `json:"signal"` // can be null, so use interface{}
+		Output string      `json:"output"`
+	} `json:"run"`
+	Language string `json:"language"`
+	Version  string `json:"version"`
 }
 
 func CreateRoom(client *Client) *Room {
@@ -545,4 +559,54 @@ func generateRoomID() string {
 	roomID := fmt.Sprintf("%d", time.Now().UnixNano()/1000000000)
 	fmt.Printf("Generated room ID: %s\n", roomID)
 	return roomID
+}
+
+func (app *application) runCodeHandler(w http.ResponseWriter, r *http.Request) {
+
+	data := map[string]interface{}{
+		"language": "js",
+		"version":  "15.10.0",
+		"files": []map[string]string{
+			{
+				"name":    "my_cool_code.js",
+				"content": "console.log(process.argv)",
+			},
+		},
+		"stdin":                "",
+		"args":                 []string{"1", "2", "3"},
+		"compile_timeout":      10000,
+		"run_timeout":          3000,
+		"compile_memory_limit": -1,
+		"run_memory_limit":     -1,
+	}
+
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		log.Println("error parsing to json", err)
+		app.badRequestResponse(w, r, err)
+
+	}
+	resp, neterr := http.Post("https://emkc.org/api/v2/piston/execute", "application/json", bytes.NewBuffer(jsonData))
+
+	if neterr != nil {
+		log.Println("error getting the run times", neterr)
+		app.badRequestResponse(w, r, neterr)
+	}
+
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+
+	if err != nil {
+		log.Println("error reading response body", err)
+	}
+
+	var result CodeResult
+	err = json.Unmarshal(body, &result)
+	if err != nil {
+		log.Println("error unmarshaling JSON", err)
+		return
+	}
+
+	log.Printf("%+v\n", result)
 }

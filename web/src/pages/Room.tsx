@@ -7,6 +7,7 @@ import { IoCopyOutline, IoCopySharp } from "react-icons/io5"
 import LOGO from "@/assets/logo.png"
 import LoadingSpinner from "@/components/LoadingSpinner"
 import { HiOutlineMenuAlt3 } from "react-icons/hi";
+import { JoinRoomService } from "@/services/joinRoomService"
 
 export default function Room() {
   const location = useLocation();
@@ -141,6 +142,15 @@ export default function Room() {
 
   }
 
+  const handleRunCode = async () => {
+    try {
+      await JoinRoomService.runcode()
+    } catch (err) {
+    }
+
+
+  }
+
 
   useEffect(() => {
     if (usersInRoom.length > 0) {
@@ -249,6 +259,9 @@ export default function Room() {
                   Download
                 </button>
 
+                <button onClick={handleRunCode}>
+                  Run
+                </button>
                 <button onClick={() => setShowSiderBar(!showSiderBar)}>
                   <HiOutlineMenuAlt3 size={21} />
                 </button>

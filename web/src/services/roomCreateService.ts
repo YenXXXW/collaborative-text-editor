@@ -16,4 +16,7 @@ export const RoomCreateService = async (creatorId: string, creatorName: string) 
     console.log("Error creating room")
     throw error
   }
+
 }
+
+
