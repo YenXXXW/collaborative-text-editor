@@ -341,7 +341,11 @@ func applyChange(program string, change *Change) string {
 
 func handleClientReads(client *Client) {
 	var readErr error
-
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Recovered panic in handleClientReads: %v", r)
+		}
+	}()
 	defer func() {
 		if readErr != nil {
 			if ce, ok := readErr.(*websocket.CloseError); ok && ce.Code == websocket.CloseGoingAway {
