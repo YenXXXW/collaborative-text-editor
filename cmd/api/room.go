@@ -105,6 +105,7 @@ func CreateRoom(client *Client) *Room {
 
 	//room.Clients[client] = true
 	//room.Users[client.UserId] = client.UserName
+	fmt.Println("room created")
 
 	return room
 }
