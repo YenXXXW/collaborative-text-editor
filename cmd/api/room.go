@@ -389,7 +389,6 @@ func handleClientReads(client *Client) {
 	client.Conn.SetReadLimit(maxMessageSize)
 	client.Conn.SetReadDeadline(time.Now().Add(pongWait))
 	client.Conn.SetPongHandler(func(string) error {
-		fmt.Println("the pong is received")
 		client.Conn.SetReadDeadline(time.Now().Add(pongWait))
 		return nil
 	})
