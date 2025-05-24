@@ -343,38 +343,49 @@ func handleClientReads(client *Client) {
 	var readErr error
 	defer func() {
 		if readErr != nil {
-			log.Println("read err happening")
-			if ce, ok := readErr.(*websocket.CloseError); ok && ce.Code == websocket.CloseGoingAway {
+			ce, ok := readErr.(*websocket.CloseError)
+			if ok {
+				if ce.Code == websocket.CloseGoingAway {
 
-				roomManager.RemoveClient(client.RoomId, client)
-				log.Printf("Temporary error for client %s, delaying removal", client.UserId)
+					roomManager.RemoveClient(client.RoomId, client)
+					log.Printf("Temporary error for client %s, delaying removal", client.UserId)
 
-				ctx, cancel := context.WithCancel(context.Background())
+					ctx, cancel := context.WithCancel(context.Background())
 
-				reconnectTimers.RWMutex.Lock()
-				reconnectTimers.m[client.UserId] = cancel
+					reconnectTimers.RWMutex.Lock()
+					reconnectTimers.m[client.UserId] = cancel
 
-				reconnectTimers.RWMutex.Unlock()
+					reconnectTimers.RWMutex.Unlock()
 
-				go func(c *Client) {
-					select {
-					case <-time.After(15 * time.Second):
-						log.Printf("User %s did not rejoin in time", c.UserId)
-						roomManager.RemoveClient(c.RoomId, c)
-						roomManager.LeaveRoom(c.RoomId, c)
-						close(client.Send)
-						client.Conn.Close()
+					go func(c *Client) {
+						select {
+						case <-time.After(15 * time.Second):
+							log.Printf("User %s did not rejoin in time", c.UserId)
+							roomManager.RemoveClient(c.RoomId, c)
+							roomManager.LeaveRoom(c.RoomId, c)
+							close(client.Send)
+							client.Conn.Close()
 
-						reconnectTimers.Lock()
-						delete(reconnectTimers.m, c.UserId)
-						reconnectTimers.Unlock()
+							reconnectTimers.Lock()
+							delete(reconnectTimers.m, c.UserId)
+							reconnectTimers.Unlock()
 
-					case <-ctx.Done():
-						log.Printf("User %s rejoined, canceled cleanup", c.UserId)
-					}
+						case <-ctx.Done():
+							log.Printf("User %s rejoined, canceled cleanup", c.UserId)
+						}
 
-				}(client)
+					}(client)
 
+				} else if ce.Code == websocket.CloseAbnormalClosure {
+
+					fmt.Println("handling the abnormal closeure")
+					roomManager.RemoveClient(client.RoomId, client)
+					roomManager.LeaveRoom(client.RoomId, client)
+
+					close(client.Send)
+					client.Conn.Close()
+
+				}
 			} else {
 				roomManager.RemoveClient(client.RoomId, client)
 				roomManager.LeaveRoom(client.RoomId, client)
