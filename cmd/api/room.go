@@ -95,7 +95,7 @@ type CodeResult struct {
 	Version  string `json:"version"`
 }
 
-func CreateRoom(client *Client) *Room {
+func CreateRoom() *Room {
 	room := &Room{
 		Program:  "// some comments",
 		Clients:  make(map[*Client]bool),
@@ -115,7 +115,7 @@ func (rm *RoomManager) JoinRoom(roomId string, client *Client) {
 	defer rm.Mutex.Unlock()
 
 	if rm.Rooms[roomId] == nil {
-		rm.Rooms[roomId] = CreateRoom(client)
+		rm.Rooms[roomId] = CreateRoom()
 	}
 
 	rm.Rooms[roomId].Clients[client] = true
@@ -167,7 +167,7 @@ func (rm *RoomManager) BroadcastToRoom(roomId string, message []byte) {
 			case client.Send <- message:
 
 			default:
-
+				log.Println("the channel is blocking")
 				rm.RemoveClient(roomId, client)
 				rm.LeaveRoom(roomId, client)
 			}
@@ -270,7 +270,7 @@ func (app *application) joinRoomHandler(w http.ResponseWriter, r *http.Request) 
 		UserName: username,
 		Conn:     conn,
 		RoomId:   roomId,
-		Send:     make(chan []byte),
+		Send:     make(chan []byte, 32),
 	}
 
 	roomManager.JoinRoom(roomId, client)
@@ -423,10 +423,9 @@ func handleClientReads(client *Client) {
 		room, ok := roomManager.Rooms[client.RoomId]
 		if ok {
 			if msg.Change != nil && msg.Event == nil {
-				log.Println(msg.Change)
+				log.Println("change", msg.Change)
 				room.Program = applyChange(room.Program, msg.Change)
-			}
-			if msg.Event != nil && (*msg.Event == "new_user_joined" || *msg.Event == "user_rejoin") {
+			} else if msg.Event != nil && (*msg.Event == "new_user_joined" || *msg.Event == "user_rejoin") {
 				if *msg.Event == "user_rejoin" {
 
 					log.Printf("user %s rejoins the room", msg.UserId)
@@ -445,8 +444,7 @@ func handleClientReads(client *Client) {
 					})
 				}
 				msg.UsersInRoom = usersInRoom
-			}
-			if msg.Event != nil && *msg.Event == "user_leave" {
+			} else if msg.Event != nil && *msg.Event == "user_leave" {
 
 				log.Printf("user leave %s", msg.UserId)
 				leaveUser := User{
@@ -469,13 +467,9 @@ func handleClientReads(client *Client) {
 				msg.UsersInRoom = usersInRoom
 				log.Println(usersInRoom)
 
-			}
-
-			if msg.Event != nil && *msg.Event == "new_program" {
+			} else if msg.Event != nil && *msg.Event == "new_program" {
 				room.Program = "//some_comment"
-			}
-
-			if msg.Event != nil && *msg.Event == "lang_change" {
+			} else if msg.Event != nil && *msg.Event == "lang_change" {
 				room.Language = *msg.Language
 
 			}
@@ -542,14 +536,7 @@ func (app *application) createRoomHandler(w http.ResponseWriter, r *http.Request
 
 	roomID := generateRoomID()
 
-	client := &Client{
-		UserId:   payload.CreatorId,
-		UserName: payload.CreatorName,
-		RoomId:   roomID,
-		Send:     make(chan []byte),
-	}
-
-	room := CreateRoom(client)
+	room := CreateRoom()
 
 	roomManager.Mutex.Lock()
 	roomManager.Rooms[roomID] = room
